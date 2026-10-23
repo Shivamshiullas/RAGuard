@@ -20,18 +20,45 @@ class IndexMismatch(RuntimeError):
 
 
 # Embeddings ------------------------------------------------------------------------------
-def _onnx_embedder(model: str):
-    """Sentence-transformers model run with ONNX Runtime (no PyTorch): mean pooling + L2 norm."""
+MODEL_FILES = ("tokenizer.json", "onnx/model.onnx")
+
+
+class EmbedderNotReady(RuntimeError):
+    """The embedding model files are not on disk. Run: python scripts/download_models.py"""
+
+
+def model_repo(model: str) -> str:
+    return model if "/" in model else f"sentence-transformers/{model}"
+
+
+def download_model(model: str, cache_dir) -> list[str]:
+    """Fetch the ONNX model files into ``cache_dir`` (the only place the app downloads from the network)."""
+    from huggingface_hub import hf_hub_download
+
+    return [hf_hub_download(model_repo(model), f, cache_dir=str(cache_dir)) for f in MODEL_FILES]
+
+
+def _onnx_embedder(model: str, cache_dir):
+    """Sentence-transformers model run with ONNX Runtime (no PyTorch): mean pooling + L2 norm.
+
+    Loads from the local cache only, so it never downloads inside a request timeout.
+    """
     import numpy as np
     import onnxruntime as ort
     from huggingface_hub import hf_hub_download
     from tokenizers import Tokenizer
 
-    repo = model if "/" in model else f"sentence-transformers/{model}"
-    tok = Tokenizer.from_file(hf_hub_download(repo, "tokenizer.json"))
+    repo = model_repo(model)
+    try:
+        tok_path, onnx_path = (hf_hub_download(repo, f, cache_dir=str(cache_dir), local_files_only=True)
+                               for f in MODEL_FILES)
+    except Exception as e:
+        raise EmbedderNotReady(f"Embedding model '{model}' is not downloaded. "
+                               "Run: python scripts/download_models.py") from e
+    tok = Tokenizer.from_file(tok_path)
     tok.enable_truncation(256)
     tok.enable_padding(pad_id=0, pad_token="[PAD]")
-    session = ort.InferenceSession(hf_hub_download(repo, "onnx/model.onnx"), providers=["CPUExecutionProvider"])
+    session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
     input_names = {i.name for i in session.get_inputs()}
 
     def embed(texts):
@@ -54,6 +81,25 @@ def _onnx_embedder(model: str):
     return embed
 
 
+def _hash_embedder(dim: int = 384):
+    """Deterministic bag-of-words hashing embedder. For offline tests only, not for real use."""
+    import hashlib
+    import math
+
+    def embed(texts):
+        out = []
+        for t in texts:
+            v = [0.0] * dim
+            for tok in tokenize(t):
+                h = int(hashlib.md5(tok.encode()).hexdigest(), 16)
+                v[h % dim] += 1.0 if (h >> 8) % 2 else -1.0
+            n = math.sqrt(sum(x * x for x in v)) or 1.0
+            out.append([x / n for x in v])
+        return out
+
+    return embed
+
+
 class Embedder:
     def __init__(self, s: Settings):
         self.s = s
@@ -64,27 +110,39 @@ class Embedder:
     def name(self) -> str:
         return f"{self.s.embedding_backend}:{self.s.embedding_model}"
 
-    def _load(self):
+    @property
+    def loaded(self) -> bool:
+        return self._fn is not None
+
+    def load(self):
+        """Load the model. Call this at startup, outside any request timeout."""
         with self._lock:
             if self._fn is None:
-                if self.s.embedding_backend == "sentence-transformers":
+                backend = self.s.embedding_backend
+                if backend == "hash":
+                    self._fn = _hash_embedder()
+                elif backend == "sentence-transformers":
                     from sentence_transformers import SentenceTransformer
 
-                    model = SentenceTransformer(self.s.embedding_model)
+                    model = SentenceTransformer(self.s.embedding_model, cache_folder=str(self.s.models_dir),
+                                                local_files_only=True)
                     self._fn = lambda texts: model.encode(list(texts), normalize_embeddings=True).tolist()
                 else:
-                    self._fn = _onnx_embedder(self.s.embedding_model)
+                    self._fn = _onnx_embedder(self.s.embedding_model, self.s.models_dir)
         return self._fn
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        faults.before_embedding(self.s.embed_timeout_s)
-        return self._load()(texts)
+        if self.s.on("fault_injection"):
+            faults.before_embedding(self.s.embed_timeout_s)
+        if self._fn is None:
+            raise EmbedderNotReady("Embedding model not loaded; the service warms it up at startup.")
+        return self._fn(texts)
 
     def embed_query(self, text: str) -> list[float]:
         return self.embed([text])[0]
 
     def dimension(self) -> int:
-        return len(self._load()(["dimension probe"])[0])
+        return len(self.load()(["dimension probe"])[0])
 
 
 # ChromaDB --------------------------------------------------------------------------------
@@ -100,7 +158,8 @@ class ChromaStore:
         return f"http://{self.s.chroma_host}:{self.s.chroma_port}" if self.s.chroma_host else f"embedded ({self.s.chroma_dir})"
 
     def _coll(self):
-        faults.before_chroma()
+        if self.s.on("fault_injection"):
+            faults.before_chroma()
         with self._lock:
             if self._collection is None:
                 import chromadb

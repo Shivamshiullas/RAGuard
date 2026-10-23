@@ -9,3 +9,8 @@ __pycache__/
 
 # Runtime data: uploads, indexes, page images, datasets, eval runs
 data/
+
+# Local model files (scripts/download_models.py) and LLM usage logs
+models/
+logs/
+eval/.work/
