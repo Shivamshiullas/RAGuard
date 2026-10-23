@@ -64,7 +64,7 @@ class Outcome:
     status: str
     answer: str
     hit_rank: int | None
-    correct: bool
+    correct: bool  # meaningless when error_type is set; errors are excluded from correctness
     missing_facts: list[str]
     prompt_tokens: int
     output_tokens: int
@@ -72,33 +72,65 @@ class Outcome:
     llm_calls: int
     latency_ms: float
     error: str = ""
+    error_type: str = ""  # rate_limit | server | timeout | auth | blocked | other
+
+
+def classify_error(text: str) -> str:
+    t = (text or "").lower()
+    if re.search(r"429|resource_exhausted|rate limit|quota", t):
+        return "rate_limit"
+    if re.search(r"(500|502|503|504)|unavailable|internal|servererror", t):
+        return "server"
+    if "timeout" in t or "timed out" in t or "deadline" in t:
+        return "timeout"
+    if re.search(r"(401|403)|api key|permission|unauthenticated", t):
+        return "auth"
+    if "blocked" in t or "safety" in t:
+        return "blocked"
+    return "other"
+
+
+HIT_KS = (1, 3)
 
 
 def summarize(outcomes: list[Outcome], k: int) -> dict[str, Any]:
-    ans = [o for o in outcomes if o.modality != "none"]
-    unans = [o for o in outcomes if o.modality == "none"]
+    ok = [o for o in outcomes if not o.error_type]
+    errored = [o for o in outcomes if o.error_type]
+    ans_all = [o for o in outcomes if o.modality != "none"]  # retrieval runs before the LLM, so errors still count here
+    ans = [o for o in ok if o.modality != "none"]
+    unans = [o for o in ok if o.modality == "none"]
 
     def pct(n: int, d: int) -> float | None:
         return round(100 * n / d, 1) if d else None
 
-    tokens = [o.prompt_tokens + o.output_tokens + o.thinking_tokens for o in outcomes]
-    lat = sorted(o.latency_ms for o in outcomes)
-    return {
-        "n": len(outcomes), "n_answerable": len(ans), "n_unanswerable": len(unans),
-        "k": k,
-        "hit_rate_at_k": pct(sum(1 for o in ans if o.hit_rank is not None and o.hit_rank <= k), len(ans)),
+    def hit(kk: int) -> float | None:
+        return pct(sum(1 for o in ans_all if o.hit_rank is not None and o.hit_rank <= kk), len(ans_all))
+
+    lat = sorted(o.latency_ms for o in ok)
+    err_types: dict[str, int] = {}
+    for o in errored:
+        err_types[o.error_type] = err_types.get(o.error_type, 0) + 1
+    mean = lambda xs: round(statistics.mean(xs), 1) if xs else None  # noqa: E731
+    out = {
+        "n": len(outcomes), "n_answerable": len(ans_all), "n_unanswerable": len(outcomes) - len(ans_all),
+        "n_scored": len(ok), "k": k,
+        **{f"hit_at_{kk}": hit(kk) for kk in HIT_KS if kk < k},
+        f"hit_at_{k}": hit(k),
+        "hit_rate_at_k": hit(k),
+        "mrr": round(sum(1.0 / o.hit_rank for o in ans_all if o.hit_rank) / len(ans_all), 3) if ans_all else None,
         "answer_correctness": pct(sum(o.correct for o in ans), len(ans)),
         "correct_abstention": pct(sum(o.correct for o in unans), len(unans)),
-        "overall_correct": pct(sum(o.correct for o in outcomes), len(outcomes)),
-        "errors": sum(1 for o in outcomes if o.status == "error"),
-        "avg_tokens_per_question": round(statistics.mean(tokens), 1) if tokens else None,
-        "avg_prompt_tokens": round(statistics.mean(o.prompt_tokens for o in outcomes), 1) if outcomes else None,
-        "avg_output_tokens": round(statistics.mean(o.output_tokens for o in outcomes), 1) if outcomes else None,
-        "avg_thinking_tokens": round(statistics.mean(o.thinking_tokens for o in outcomes), 1) if outcomes else None,
+        "overall_correct": pct(sum(o.correct for o in ok), len(ok)),
+        "errors": len(errored), "error_types": err_types,
+        "avg_tokens_per_question": mean([o.prompt_tokens + o.output_tokens for o in ok]),
+        "avg_prompt_tokens": mean([o.prompt_tokens for o in ok]),
+        "avg_output_tokens": mean([o.output_tokens for o in ok]),
+        "avg_thinking_tokens": mean([o.thinking_tokens for o in ok]),
         "llm_calls": sum(o.llm_calls for o in outcomes),
         "latency_p50_ms": round(lat[len(lat) // 2], 1) if lat else None,
         "latency_p95_ms": round(lat[min(len(lat) - 1, int(round(0.95 * (len(lat) - 1))))], 1) if lat else None,
     }
+    return out
 
 
 def outcome_dict(o: Outcome) -> dict[str, Any]:

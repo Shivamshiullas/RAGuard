@@ -167,3 +167,52 @@ def test_summary_metrics():
     m = summarize([o("text", 1, True), o("text", None, False), o("none", None, True), o("none", None, False)], k=6)
     assert m["hit_rate_at_k"] == 50.0 and m["answer_correctness"] == 50.0 and m["correct_abstention"] == 50.0
     assert m["avg_tokens_per_question"] == 110.0 and m["llm_calls"] == 4
+    assert m["hit_at_1"] == 50.0 and m["mrr"] == 0.5
+
+
+def test_error_classification_and_errors_not_scored():
+    from raguard.scoring import classify_error
+
+    assert classify_error("all language model providers failed: ClientError: 429 RESOURCE_EXHAUSTED") == "rate_limit"
+    assert classify_error("ServerError: 503 UNAVAILABLE") == "server"
+    assert classify_error("ReadTimeout: timed out") == "timeout"
+    assert classify_error("ClientError: 400 API key not valid") == "auth"
+
+    def o(mod, ok, err=""):
+        return Outcome("i", mod, "q", "error" if err else "answered", "a", 1, ok, [], 10, 5, 3, 1, 10.0, err, err)
+    m = summarize([o("text", True), o("text", False, "rate_limit"), o("none", True), o("none", False, "server")], k=6)
+    assert m["answer_correctness"] == 100.0 and m["correct_abstention"] == 100.0  # errors excluded
+    assert m["errors"] == 2 and m["error_types"] == {"rate_limit": 1, "server": 1}
+    assert m["hit_at_1"] == 100.0 and m["mrr"] == 1.0  # retrieval still counted for errored questions
+    assert m["avg_thinking_tokens"] == 3.0 and m["avg_tokens_per_question"] == 15.0
+
+
+def test_stage1_thinking_defaults_and_fallback(s1):
+    from google.genai import errors
+
+    assert s1.gemini_thinking_budget == 0
+
+    class Rejecting(_Client):
+        def generate_content(self, model, contents, config):
+            self.calls.append(config.thinking_config)
+            if config.thinking_config is not None and config.thinking_config.thinking_budget == 0:
+                raise errors.ClientError(400, {"error": {"message": "thinking_budget is not supported"}})
+            return _resp()
+
+    client = Rejecting(_resp())
+    p = GeminiProvider(s1, client=client)
+    p.generate("s", "u", [], 100)
+    assert p.thinking_mode == "level=minimal"
+    assert client.calls[0].thinking_budget == 0 and client.calls[1].thinking_level is not None
+    p.generate("s", "u", [], 100)  # remembers what worked
+    assert len(client.calls) == 3
+
+
+def test_empty_env_value_uses_default(tmp_path):
+    from raguard.config import load_settings
+
+    s = load_settings({"RAGUARD_STAGE": "1", "RAGUARD_DATA_DIR": str(tmp_path), "GEMINI_THINKING_BUDGET": "",
+                       "TOP_K": ""})
+    assert s.gemini_thinking_budget == 0 and s.top_k == 6
+    s3 = load_settings({"RAGUARD_STAGE": "3", "RAGUARD_DATA_DIR": str(tmp_path)})
+    assert s3.gemini_thinking_budget is None

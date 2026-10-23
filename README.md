@@ -68,7 +68,23 @@ from the same file, so results stay comparable. It reports:
 - correct abstention on unanswerable questions
 - average tokens per question, and latency
 
-Results are saved in `eval/results/`.
+Results are saved in `eval/results/stage<N>_<date>.json`. API errors (rate limits, server errors, timeouts)
+are counted separately and are not scored as wrong answers. Gemini thinking tokens are reported separately;
+Stage 1 sets the thinking budget to 0 (`GEMINI_THINKING_BUDGET`).
+
+**Adding questions.** Add entries to the `questions` list in `eval/questions.json`:
+
+```json
+{"id": "my01", "modality": "text", "question": "…", "expected_answer": "…",
+ "key_facts": ["fact one", "alt a|alt b"], "file": "Some_Document.pdf", "page": 2}
+{"id": "my02", "modality": "none", "question": "A question the documents do not answer"}
+```
+
+- `id`: unique.
+- `modality`: `text` (Stage 1+), `ocr` or `visual` (Stage 2+), or `none` for unanswerable questions.
+- `key_facts`: short strings that must all appear in a correct answer. Use `|` for alternatives.
+  Matching ignores case, citations and dash or `%` spacing, and numbers must match as whole numbers.
+- `file` and `page`: where the answer is. Used for hit@k and MRR. The file must be in `sample_docs/`.
 
 **Stage 1 results:** see `eval/results/` (filled in when the live run is done).
 

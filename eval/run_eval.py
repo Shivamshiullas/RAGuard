@@ -1,13 +1,14 @@
 """Evaluate RAGuard on the shared question set (eval/questions.json).
 
 Builds a fresh index from the sample documents in an isolated data folder, asks every question,
-and reports retrieval hit rate@k, key-fact answer correctness, correct abstention, tokens per
-question (from logs/usage.jsonl) and latency. Results are saved to eval/results/.
+and reports retrieval hit@1/@3/@k and MRR, key-fact answer correctness, correct abstention,
+tokens per question (from logs/usage.jsonl, thinking tokens separately) and latency. API errors
+(rate limits, server errors, timeouts) are counted separately and are not scored as wrong.
+Results are saved to eval/results/stage<N>_<date>.json.
 
 Usage:
-  python eval/run_eval.py --stage 1                 # live Gemini (needs GEMINI_API_KEY)
-  python eval/run_eval.py --stage 1 --mock          # offline pipeline check, fake LLM
-  python eval/run_eval.py --stage 1 --limit 5 --delay 4
+  python eval/run_eval.py --stage 1 --delay 4      # live Gemini (needs GEMINI_API_KEY)
+  python eval/run_eval.py --stage 1 --mock         # offline pipeline check, fake LLM
 """
 from __future__ import annotations
 
@@ -27,7 +28,8 @@ from raguard.answering import render_citations  # noqa: E402
 from raguard.config import load_settings  # noqa: E402
 from raguard.interfaces import LLMReply  # noqa: E402
 from raguard.llm import LLMClient  # noqa: E402
-from raguard.scoring import Outcome, key_fact_score, load_questions, outcome_dict, summarize  # noqa: E402
+from raguard.scoring import (Outcome, classify_error, key_fact_score, load_questions, outcome_dict,  # noqa: E402
+                             summarize)
 from raguard.service import RAGuard  # noqa: E402
 from raguard.usage import UsageLog, tagged  # noqa: E402
 
@@ -38,6 +40,7 @@ class MockGemini:
     """Offline stand-in: answers with the first evidence passage. Checks the pipeline, not quality."""
 
     name, model = "gemini", "mock"
+    thinking_mode = "n/a (mock)"
 
     def available(self):
         return True, "mock"
@@ -45,7 +48,7 @@ class MockGemini:
     def generate(self, system, user, images, max_tokens):
         start = user.find(">\n") + 2
         first = user[start:user.find("</evidence>")].split("\n", 1)[-1][:400]
-        return LLMReply(f"{first} [E1]", "gemini", "mock", len(user) // 4, len(first) // 4)
+        return LLMReply(f"{first} [E1]", "gemini", "mock", len(user) // 4, len(first) // 4, 0)
 
 
 def main() -> None:
@@ -93,7 +96,9 @@ def main() -> None:
     run_id = f"stage{s.stage}-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
     usage = UsageLog(s.usage_log, s.stage)
     outcomes: list[Outcome] = []
-    print(f"\nRun {run_id}: stage {s.stage}, {len(questions)} questions, LLM {rag.llm.description}, k={s.top_k}\n")
+    print(f"\nRun {run_id}: stage {s.stage}, {len(questions)} questions, k={s.top_k}")
+    print(f"  embedder: {rag.embedder.name} (loaded: {rag.embedder.loaded})")
+    print(f"  LLM: {rag.llm.description}\n")
     for i, q in enumerate(questions, start=1):
         with tagged(q.id, run_id):
             t0 = time.monotonic()
@@ -107,21 +112,20 @@ def main() -> None:
                     hit = pos
                     break
         answer = render_citations(res.text, res.cited)
+        error_type = classify_error(res.text) if res.status == "error" else ""
         if q.answerable:
-            ok, missing = key_fact_score(q, answer) if res.status in {"answered", "unverified", "extractive"} else (False, q.key_facts)
+            scored = res.status in {"answered", "unverified", "extractive"}
+            ok, missing = key_fact_score(q, answer) if scored else (False, list(q.key_facts))
         else:
             ok, missing = res.status == "abstained", []
-        outcomes.append(Outcome(q.id, q.modality, q.question, res.status, answer, hit, ok, missing,
-                                sum(e["prompt_tokens"] or 0 for e in calls), sum(e["output_tokens"] or 0 for e in calls),
-                                sum(e["thinking_tokens"] or 0 for e in calls), len(calls), ms,
-                                res.text if res.status == "error" else ""))
-        mark = "✓" if ok else "✗"
+        o = Outcome(q.id, q.modality, q.question, res.status, answer, hit, ok, missing,
+                    sum(e["prompt_tokens"] or 0 for e in calls), sum(e["output_tokens"] or 0 for e in calls),
+                    sum(e["thinking_tokens"] or 0 for e in calls), len(calls), ms,
+                    res.text if res.status == "error" else "", error_type)
+        outcomes.append(o)
+        mark = "!" if error_type else ("✓" if ok else "✗")
         print(f"  [{i:2}/{len(questions)}] {mark} {q.id} {res.status:10} hit@{hit or '-':<2} "
-              f"tok={outcomes[-1].prompt_tokens + outcomes[-1].output_tokens:<5} {q.question[:60]}")
-        if not ok and q.answerable and res.status != "error":
-            print(f"           missing: {missing} | answer: {answer[:140]!r}")
-        if res.status == "error":
-            print(f"           error: {res.text[:200]}")
+              f"tok={o.prompt_tokens + o.output_tokens:<5} think={o.thinking_tokens:<4} {q.question[:55]}")
         if args.delay and i < len(questions):
             time.sleep(args.delay)
 
@@ -129,27 +133,51 @@ def main() -> None:
     out_dir = ROOT / "eval" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     label = args.label or ("mock" if args.mock else "live")
+    thinking = getattr(rag.llm.providers[0], "thinking_mode", "n/a") if rag.llm.providers else "n/a"
     result = {"run_id": run_id, "stage": s.stage, "label": label, "llm": rag.llm.description,
-              "embedder": rag.embedder.name, "features": sorted(s.features), "modalities": sorted(modalities),
-              "summary": summary, "outcomes": [outcome_dict(o) for o in outcomes]}
-    path = out_dir / f"{run_id}_{label}.json"
-    path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+              "gemini_thinking": thinking, "embedder": rag.embedder.name, "features": sorted(s.features),
+              "modalities": sorted(modalities), "k": s.top_k, "summary": summary,
+              "outcomes": [outcome_dict(o) for o in outcomes]}
+    suffix = "" if label == "live" else f"_{label}"
+    path = out_dir / f"stage{s.stage}_{time.strftime('%Y%m%d-%H%M')}{suffix}.json"
+    path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print("\n" + "=" * 64)
-    print(f"Stage {s.stage} results ({label}) - {summary['n']} questions ({summary['n_answerable']} answerable, "
-          f"{summary['n_unanswerable']} unanswerable)")
-    print("=" * 64)
-    rows = [("Retrieval hit rate@k", f"{summary['hit_rate_at_k']}%  (k={summary['k']})"),
-            ("Answer correctness (key facts)", f"{summary['answer_correctness']}%"),
-            ("Correct abstention (unanswerable)", f"{summary['correct_abstention']}%"),
-            ("Overall correct", f"{summary['overall_correct']}%"),
+    k = summary["k"]
+    n_ans = sum(1 for o in outcomes if o.modality != "none" and not o.error_type)
+    n_un = sum(1 for o in outcomes if o.modality == "none" and not o.error_type)
+    print("\n" + "=" * 70)
+    print(f"Stage {s.stage} results ({label}): {summary['n']} questions "
+          f"({summary['n_answerable']} answerable, {summary['n_unanswerable']} unanswerable)")
+    print("=" * 70)
+    rows = [(f"Retrieval hit@1 / hit@3 / hit@{k}",
+             f"{summary.get('hit_at_1')}% / {summary.get('hit_at_3')}% / {summary[f'hit_at_{k}']}%"),
+            ("Retrieval MRR", str(summary["mrr"])),
+            ("Answer correctness (key facts)", f"{summary['answer_correctness']}%  (of {n_ans} scored)"),
+            ("Correct abstention (unanswerable)", f"{summary['correct_abstention']}%  (of {n_un} scored)"),
+            ("Overall correct", f"{summary['overall_correct']}%  (of {summary['n_scored']} scored)"),
+            ("API errors (not scored)", f"{summary['errors']} {summary['error_types'] or ''}".strip()),
             ("Avg tokens / question", f"{summary['avg_tokens_per_question']}  (prompt {summary['avg_prompt_tokens']}, "
-                                      f"output {summary['avg_output_tokens']}, thinking {summary['avg_thinking_tokens']})"),
+                                      f"output {summary['avg_output_tokens']})"),
+            ("Avg thinking tokens / question", f"{summary['avg_thinking_tokens']}  (Gemini thinking: {thinking})"),
             ("LLM calls", str(summary["llm_calls"])),
-            ("Latency p50 / p95", f"{summary['latency_p50_ms']} / {summary['latency_p95_ms']} ms"),
-            ("Errors", str(summary["errors"]))]
+            ("Latency p50 / p95", f"{summary['latency_p50_ms']} / {summary['latency_p95_ms']} ms")]
     for name, val in rows:
         print(f"  {name:<36} {val}")
+
+    problems = [o for o in outcomes if o.error_type or not o.correct]
+    if problems:
+        print("\nQuestions not answered correctly:")
+        for o in problems:
+            if o.error_type:
+                kind = f"API error ({o.error_type})"
+            elif o.modality == "none":
+                kind = "answered an unanswerable question"
+            elif o.status == "abstained":
+                kind = "abstained wrongly"
+            else:
+                kind = f"incorrect, missing {o.missing_facts}"
+            shown = o.error if o.error_type else o.answer
+            print(f"  - {o.id} [{kind}] {o.question}\n      -> {shown[:500]!r}")
     print(f"\nSaved {path.relative_to(ROOT)}")
 
 
