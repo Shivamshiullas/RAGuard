@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { sendMockMessage } from "../api/mockChat";
+import { sendMessage } from "../api/chat";
 import ChatHeader from "../components/ChatHeader";
 import Composer from "../components/Composer";
 import ExampleQuestions from "../components/ExampleQuestions";
@@ -23,13 +23,17 @@ export default function ChatPage({ onAdminSignIn }: ChatPageProps) {
         role: "user",
         text: outgoing.text,
         attachmentName: outgoing.attachment?.name,
+        attachmentPreview: outgoing.attachment ? URL.createObjectURL(outgoing.attachment) : undefined,
       },
     ]);
     setIsLoading(true);
 
     try {
-      const reply = await sendMockMessage(outgoing);
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", text: reply }]);
+      const response = await sendMessage(outgoing);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", text: response.answer, response }]);
+    } catch (err) {
+      const text = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", text, error: true }]);
     } finally {
       setIsLoading(false);
     }
@@ -63,7 +67,7 @@ export default function ChatPage({ onAdminSignIn }: ChatPageProps) {
       <footer className="chat-footer">
         <div className="chat-column">
           <Composer onSend={handleSend} disabled={isLoading} />
-          <p className="demo-note">Demo mode: replies are sample text, not answers from college documents.</p>
+          <p className="demo-note">Answers come from official college documents. Check the cited sources for important decisions.</p>
         </div>
       </footer>
     </div>

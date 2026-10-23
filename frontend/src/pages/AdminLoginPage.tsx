@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { signInAdmin } from "../api/mockAuth";
+import { signInAdmin } from "../api/auth";
 import BrandLogo from "../components/BrandLogo";
 import { branding } from "../config/branding";
 import type { AdminSession } from "../types/auth";
@@ -36,7 +36,6 @@ export default function AdminLoginPage({ onSignedIn, onBack }: AdminLoginPagePro
         </div>
         <h1 className="login-panel__title">Admin sign in</h1>
         <p className="login-panel__text">Manage the documents the {branding.assistantTitle} answers from.</p>
-        <p className="admin-demo-note">Demo mode: any username and password is accepted. No real account is checked.</p>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="field">

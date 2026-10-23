@@ -50,7 +50,8 @@ function DocumentItem({ doc, onReprocess, onSetActive }: DocumentItemProps) {
           <p className="doc-item__file">
             <span className="file-tag">{FILE_KIND_LABELS[version.fileKind]}</span>
             {version.fileName} · {formatBytes(version.sizeBytes)} · v{version.version}
-            {version.ocrRequired && " · scanned pages (OCR)"}
+            {version.ocrRequired && " · read with OCR"}
+            {version.stage === "indexed" && version.chunkCount ? ` · ${version.chunkCount} ${version.chunkCount === 1 ? "chunk" : "chunks"}` : ""}
           </p>
         </div>
         <span className={`badge badge--${status.tone}`}>{status.label}</span>
@@ -58,6 +59,7 @@ function DocumentItem({ doc, onReprocess, onSetActive }: DocumentItemProps) {
 
       <ProcessingStages version={version} />
       {version.stage === "failed" && version.error && <p className="doc-item__error">{version.error}</p>}
+      {version.stage === "indexed" && version.error && <p className="doc-item__note">{version.error}</p>}
 
       <div className="doc-item__footer">
         <details className="doc-item__versions">

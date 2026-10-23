@@ -1,4 +1,4 @@
-export type FileKind = "pdf" | "doc" | "docx" | "txt";
+export type FileKind = "pdf" | "docx" | "txt" | "png" | "jpg";
 
 export type ProcessingStage = "uploaded" | "extracting" | "ocr" | "embedding" | "indexed" | "failed";
 
@@ -15,6 +15,8 @@ export interface DocumentVersion {
   error?: string;
   /** True when the file has scanned pages that must be read with OCR. Decided by the backend. */
   ocrRequired: boolean;
+  /** Number of indexed text chunks (0 until indexed). */
+  chunkCount?: number;
 }
 
 export interface AdminDocument {

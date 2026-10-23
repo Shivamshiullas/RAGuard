@@ -1,6 +1,7 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 import { branding } from "../config/branding";
 import type { OutgoingMessage } from "../types/chat";
+import { validateScreenshot } from "../utils/documents";
 import { PaperclipIcon, SendIcon } from "./Icons";
 
 interface ComposerProps {
@@ -8,18 +9,43 @@ interface ComposerProps {
   disabled?: boolean;
 }
 
-// Phase 1: basic attach control only. Preview and file validation come in Phase 3.
+// Text box with an optional screenshot. A screenshot alone can be sent; the
+// assistant then explains it using the college documents.
 export default function Composer({ onSend, disabled }: ComposerProps) {
   const [text, setText] = useState("");
   const [attachment, setAttachment] = useState<File | undefined>();
+  const [preview, setPreview] = useState<string | undefined>();
+  const [attachError, setAttachError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const canSend = !disabled && text.trim().length > 0;
+  const canSend = !disabled && (text.trim().length > 0 || Boolean(attachment));
+
+  useEffect(() => {
+    if (!attachment) {
+      setPreview(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(attachment);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [attachment]);
 
   function clearAttachment() {
     setAttachment(undefined);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const error = validateScreenshot(file);
+    setAttachError(error);
+    if (error) {
+      clearAttachment();
+      return;
+    }
+    setAttachment(file);
   }
 
   function submit() {
@@ -27,6 +53,7 @@ export default function Composer({ onSend, disabled }: ComposerProps) {
     onSend({ text: text.trim(), attachment });
     setText("");
     clearAttachment();
+    setAttachError(null);
     textareaRef.current?.focus();
   }
 
@@ -45,9 +72,14 @@ export default function Composer({ onSend, disabled }: ComposerProps) {
 
   return (
     <form className="composer" onSubmit={handleSubmit}>
+      {attachError && (
+        <p className="composer__error" role="alert">
+          {attachError}
+        </p>
+      )}
       {attachment && (
         <div className="composer__attachment">
-          <PaperclipIcon size={14} />
+          {preview ? <img className="composer__thumb" src={preview} alt="" /> : <PaperclipIcon size={14} />}
           <span className="composer__attachment-name">{attachment.name}</span>
           <button
             type="button"
@@ -68,7 +100,7 @@ export default function Composer({ onSend, disabled }: ComposerProps) {
           className="visually-hidden"
           tabIndex={-1}
           aria-hidden="true"
-          onChange={(e) => setAttachment(e.target.files?.[0])}
+          onChange={handleFileChange}
         />
         <button
           type="button"

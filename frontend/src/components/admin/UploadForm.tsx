@@ -196,8 +196,7 @@ export default function UploadForm({ documents, onUpload }: UploadFormProps) {
           aria-invalid={Boolean(fileError)}
         />
         <p id={`${id}-file-hint`} className="field__hint">
-          PDF, DOC, DOCX or TXT, up to {MAX_UPLOAD_MB} MB. PDFs can contain images and scanned pages; scanned
-          pages are read with OCR.
+          PDF, DOCX, TXT, PNG or JPG, up to {MAX_UPLOAD_MB} MB. Scanned PDF pages and images are read with OCR.
         </p>
         {fileError && (
           <p id={`${id}-file-error`} className="field__error" role="alert">

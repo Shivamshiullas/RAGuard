@@ -23,6 +23,8 @@
   --color-info: var(--color-accent);
   --color-info-soft: var(--color-accent-soft);
   --color-muted-soft: #ece8e0;
+  --color-warning: #8a5a12;
+  --color-warning-soft: #f6ecd8;
 
   /* Type */
   --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;

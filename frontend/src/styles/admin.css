@@ -282,6 +282,14 @@
   font-size: var(--text-sm);
 }
 
+.doc-item__note {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: var(--text-sm);
+}
+
 .doc-item__footer {
   display: flex;
   flex-wrap: wrap;

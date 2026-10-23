@@ -1,6 +1,7 @@
 # Secrets
 .env
 .env.*
+!.env.example
 
 # Python
 .venv/
@@ -12,6 +13,7 @@ __pycache__/
 data/
 models/
 logs/
+backend/storage/
 eval/.work/
 
 # Node
