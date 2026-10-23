@@ -1,20 +1,25 @@
 import { branding } from "../config/branding";
+import BrandLogo from "./BrandLogo";
 
-export default function ChatHeader() {
+interface ChatHeaderProps {
+  onAdminSignIn: () => void;
+}
+
+export default function ChatHeader({ onAdminSignIn }: ChatHeaderProps) {
   return (
     <header className="chat-header">
       <div className="chat-header__inner">
-        {branding.logoUrl ? (
-          <img className="chat-header__logo" src={branding.logoUrl} alt={`${branding.collegeName} logo`} />
-        ) : (
-          <div className="chat-header__logo chat-header__logo--initials" aria-hidden="true">
-            {branding.logoInitials}
-          </div>
-        )}
+        <BrandLogo />
         <div>
           <p className="chat-header__college">{branding.collegeName}</p>
           <h1 className="chat-header__title">{branding.assistantTitle}</h1>
           <p className="chat-header__subtitle">{branding.subtitle}</p>
+        </div>
+        <div className="profile-switch">
+          <span className="profile-pill">Student</span>
+          <button type="button" className="link-button" onClick={onAdminSignIn}>
+            Admin sign in
+          </button>
         </div>
       </div>
     </header>

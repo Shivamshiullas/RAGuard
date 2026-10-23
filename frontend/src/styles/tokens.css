@@ -12,7 +12,17 @@
   --color-accent-soft: #e8edf3;
   --color-on-accent: #ffffff;
   --color-secondary: #4a6b53;     /* muted forest green */
+  --color-secondary-soft: #e6eee7;
   --color-focus: #2f6db5;
+
+  /* Status */
+  --color-success: #2f6b45;
+  --color-success-soft: #e3efe6;
+  --color-error: #a23b2a;
+  --color-error-soft: #f7e4df;
+  --color-info: var(--color-accent);
+  --color-info-soft: var(--color-accent-soft);
+  --color-muted-soft: #ece8e0;
 
   /* Type */
   --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;

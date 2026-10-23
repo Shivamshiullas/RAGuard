@@ -1,8 +1,8 @@
-# College Assistant Frontend (Phase 1)
+# College Assistant Frontend
 
-A chatbot screen built with React, Vite and TypeScript for the college website.
+A chatbot screen for students plus a separate admin area for managing documents, built with React, Vite and TypeScript for the college website.
 
-**Phase 1 uses mock data only.** It does not connect to any backend, and every reply is sample text marked as demo mode.
+**Everything uses mock data.** Nothing connects to a backend yet: chat replies are sample text, admin sign-in accepts any username and password, and document uploads and processing are simulated in the browser (reset on reload).
 
 ## Requirements
 
@@ -35,23 +35,58 @@ Edit `src/config/branding.ts` to set the college name, logo, welcome text, examp
 
 Colours, spacing and fonts are CSS variables in `src/styles/tokens.css`.
 
+## Demo profiles: student and admin
+
+- The app opens as a **student** on the chat screen.
+- Click **Admin sign in** (top right) to open the admin login. In demo mode any username and password works.
+- In the admin area, **Switch to student** signs out and returns to the chat.
+
+The admin session is kept in memory only. Reloading the page returns to the student view.
+
+## Admin document management
+
+- Upload **PDF, DOC, DOCX or TXT** files up to 25 MB with title, category, semester, academic year and effective date.
+- Choose **Upload as → New version of …** to add a new version of an existing document; the form is pre-filled from it.
+- Each document shows its processing stages: Uploaded → Extracting text & images → OCR (only for scanned pages) → Embedding → Indexed, or Failed with a reason.
+- **Reprocess** re-runs processing, **Deactivate/Activate** hides or restores a document, and **Versions** lists earlier versions.
+
+Demo-only rules so every path can be shown on demand:
+
+| File name contains | Simulated result |
+|---|---|
+| `scan` (PDF only) | Scanned pages detected, OCR stage runs |
+| `fail` (any type) | Fails at the embedding stage; Reprocess then succeeds |
+
 ## Project structure
 
 ```
 src/
-  app/App.tsx                 app shell (a router is added in Phase 4)
-  pages/ChatPage.tsx          main chat screen and conversation state
+  app/App.tsx                 app shell; switches between chat, admin login and admin views
+  pages/
+    ChatPage.tsx              student chat screen and conversation state
+    AdminLoginPage.tsx        mock admin sign-in
+    AdminDocumentsPage.tsx    upload form and document list
   components/
-    ChatHeader.tsx            logo, college name, title, subtitle
+    ChatHeader.tsx            logo, college name, title, Admin sign in link
+    BrandLogo.tsx             replaceable logo or initials
     ExampleQuestions.tsx      clickable example question chips
     MessageList.tsx           conversation list and "Preparing answer…" state
     MessageBubble.tsx         one user or assistant message
     Composer.tsx              text box, attach button, send button
     Icons.tsx                 inline SVG icons
-  api/mockChat.ts             mock replies (replaced by a real API client in Phase 5)
-  types/chat.ts               message types
+    admin/
+      AdminHeader.tsx         admin header with Switch to student
+      UploadForm.tsx          document upload form with file validation
+      DocumentList.tsx        documents, status, actions, version history
+      ProcessingStages.tsx    processing pipeline display
+  api/
+    mockChat.ts               mock chat replies
+    mockAuth.ts               mock admin sign-in
+    mockDocuments.ts          in-memory document store and simulated processing
+  types/                      chat, documents, auth
+  utils/documents.ts          file validation, stage order, formatting
   config/branding.ts          replaceable college branding and copy
-  styles/                     tokens.css, global.css, components.css
+  styles/                     tokens.css, global.css, components.css, admin.css
 ```
 
 ## Manual test checklist
@@ -64,9 +99,18 @@ src/
 6. Keyboard only: **Tab** moves through the chips, attach button, text box and Send button, each with a visible focus outline.
 7. Narrow the browser (or use DevTools device mode, **Ctrl+Shift+M**) to phone width: nothing scrolls sideways and the Send button becomes an icon.
 
+Admin area:
+
+8. Click **Admin sign in**, enter any username and password, and sign in. The Document management page opens with five sample documents (one failed, one inactive).
+9. Choose a `.png` or other unsupported file: an error appears and the upload is blocked.
+10. Upload a PDF named like `timetable-scan.pdf`: it appears at the top and moves through Uploaded → Extracting → OCR → Embedding → Indexed.
+11. Upload a `.docx` or `.txt`: same, without the OCR stage.
+12. Choose **Upload as → New version of: Campus Information** and upload a file named like `notes-fail.txt`: it fails at Embedding; **Versions (2)** lists v2 and v1. Click **Reprocess** and it reaches Indexed.
+13. Click **Deactivate** / **Activate** on a document and check the badge changes.
+14. Click **Switch to student**: you are back on the chat screen as a student.
+
 ## Coming in later phases
 
 - Phase 2: answer status, source citations, warnings, error states
 - Phase 3: screenshot preview, validation and upload progress
-- Phase 4: separate admin login and document management
-- Phase 5: real backend connection via `VITE_API_BASE_URL`
+- Phase 5: real backend connection via `VITE_API_BASE_URL`; the backend enforces admin authorization

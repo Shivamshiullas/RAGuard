@@ -7,7 +7,11 @@ import MessageList from "../components/MessageList";
 import { branding } from "../config/branding";
 import type { ChatMessage, OutgoingMessage } from "../types/chat";
 
-export default function ChatPage() {
+interface ChatPageProps {
+  onAdminSignIn: () => void;
+}
+
+export default function ChatPage({ onAdminSignIn }: ChatPageProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,7 +37,7 @@ export default function ChatPage() {
 
   return (
     <div className="chat-page">
-      <ChatHeader />
+      <ChatHeader onAdminSignIn={onAdminSignIn} />
 
       <main className="chat-main">
         <div className="chat-column">
