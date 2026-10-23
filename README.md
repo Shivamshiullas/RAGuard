@@ -2,114 +2,119 @@
 
 **Your academic documents. Clear answers. Verifiable evidence.**
 
-RAGuard is a fault-tolerant multimodal RAG assistant for academic documents: syllabi, regulations, exam
-rules, admission notices and handbooks. It answers questions with page-level citations, recovers when
-retrieval fails, and says plainly when the documents don't contain the answer. Its Academic Data Lab builds
-a quality-checked question-answer dataset with Adaption, and RAGuard is evaluated against that dataset.
+RAGuard answers questions about academic documents (syllabi, regulations, exam rules, notices) with
+page-level citations. It is built in three stages that build on each other. Each stage runs, can be
+demoed and is evaluated on its own:
 
-This is a hackathon prototype, not a production system.
+| Stage | Adds | Status |
+|---|---|---|
+| 1. Basic RAG | Text PDFs, section-aware chunking, MiniLM + ChromaDB, grounded Gemini answers with citations | ✅ `stage-1` |
+| 2. Multimodal | OCR for scanned pages and images, table/figure tagging, selective vision | planned |
+| 3. Fault tolerance | BM25 fusion, retries/timeouts/circuit breaker, fallbacks, relevance gate, answer checks, fault injection | planned (code exists, being reworked) |
 
-## Quick start
+Pick the stage with `RAGUARD_STAGE=1|2|3` in `.env`. Individual features can be switched with
+`FEATURE_<NAME>=1/0` (see `.env.example`).
+
+## Setup
 
 ```bash
 py -3.12 -m venv .venv
-.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+.venv\Scripts\activate                  # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-copy .env.example .env            # optional: add ANTHROPIC_API_KEY / ADAPTION_API_KEY
+python scripts/download_models.py        # embedding model -> ./models (once)
+copy .env.example .env                   # then set GEMINI_API_KEY
 streamlit run app.py
 ```
 
-Then open **Document Library → Load sample documents** and go to the **AI Assistant**.
+The app never downloads models itself. If `./models` is missing it says so and tells you to run the script.
 
-The first start downloads the embedding model (all-MiniLM-L6-v2, about 90 MB) from Hugging Face.
+## Stage 1: Basic RAG
 
-## What works without any keys
+**What it does**
 
-| Capability | Needs | Without it |
-|---|---|---|
-| Upload, extraction, page mapping, BM25 + ChromaDB retrieval, recovery, abstention | nothing | – |
-| OCR for scanned pages | `rapidocr-onnxruntime` (in requirements) | Scanned pages are flagged as unreadable |
-| Written answers, vision on page images, LLM-generated datasets, Malayalam variants | `ANTHROPIC_API_KEY` or a local Ollama model | Extractive answers (verbatim passages with citations) and template-generated datasets, clearly labelled |
-| Adaption upload / adapt / evaluation / download | `ADAPTION_API_KEY` | Adaption steps are disabled and say why. They are never simulated. |
+- **Upload checks:** file type (PDF only in Stage 1), size, page count, password protection and PDF signature.
+  Uploads are de-duplicated by SHA-256, so the same file is never indexed twice.
+- **Extraction:** PyMuPDF text blocks with page numbers. Running headers and footers are removed.
+- **Section-aware chunking:** a heading (detected by font size or bold) starts a new chunk, and paragraphs
+  are packed up to `CHUNK_CHARS` with `CHUNK_OVERLAP`. Every table is kept whole in one chunk. Chunks
+  never cross pages. Each chunk stores `doc_id`, file name, page and chunk ID, and starts with a
+  `[document | page | heading]` context line.
+- **Retrieval:** `all-MiniLM-L6-v2` (ONNX Runtime) embeddings, ChromaDB cosine index, top-k (`TOP_K`).
+- **Answering:** Gemini (`google-genai`, `GEMINI_MODEL`, temperature 0.1, capped output tokens). The
+  prompt allows only the given passages. Passages are cited internally as `[E1]`, `[E2]` and shown in the
+  UI as `[file, p.N]`. If the passages don't answer the question, the model replies `INSUFFICIENT_EVIDENCE`.
+- **Source of truth:** `data/registry.json` and `data/chunks/*.jsonl`.
+- **Token logging:** every LLM call appends prompt, output and thinking tokens, the question ID and the
+  stage to `logs/usage.jsonl`.
+- **UI:** Document Library (upload, list, delete, preview) and AI Assistant (chat with citations).
 
-## How it works
+**Not in Stage 1, by design.** Scanned pages are skipped with a warning (OCR is Stage 2). There is no
+keyword fallback, no retries and no relevance gate (Stage 3). If ChromaDB or Gemini fails, the answer
+shows an error.
 
+**Evaluate**
+
+```bash
+python eval/run_eval.py --stage 1 --delay 4      # live Gemini; --delay respects free-tier rate limits
+python eval/run_eval.py --stage 1 --mock         # offline pipeline check with a fake LLM
 ```
-upload → validate → PyMuPDF text per page ─┬─ OCR if a page is scanned (RapidOCR)
-                                           ├─ tables → markdown chunks
-                                           └─ figures/charts/scans → page image + "visual" record
-chunks (+ "[document | page | heading]" context line) → local JSONL store (source of truth)
-                                           ├─ ChromaDB (cosine, MiniLM embeddings)
-                                           └─ BM25 (in-memory, rebuilt from JSONL, independent of ChromaDB)
 
-question → manifest check → embed (timeout, retries) → ChromaDB (timeout, retries, reconnect)
-         → BM25 (always) → route: hybrid | hybrid_recovery (weak vectors) | keyword_fallback (vector path down)
-         → reciprocal-rank fusion → visual records for chart/diagram questions
-         → relevance gate (IDF-weighted term coverage + similarity) → sufficient? → answer : abstain
-         → LLM with [E#] evidence → citation validation, number check, support check
-```
+The script builds a fresh index from `sample_docs/` and runs the shared question set (`eval/questions.json`):
+20 text questions plus 8 unanswerable ones in Stage 1. Later stages add the OCR and visual questions
+from the same file, so results stay comparable. It reports:
 
-Every step is recorded as a recovery event, and the UI shows the trace. Injected failures are labelled **SIMULATED**.
+- retrieval hit rate@k (the expected source page is in the top k)
+- answer correctness by key-fact matching
+- correct abstention on unanswerable questions
+- average tokens per question, and latency
 
-## Pages
+Results are saved in `eval/results/`.
 
-- **Dashboard**: document stats, recent uploads, live system status.
-- **Document Library**: upload, processing status, previews, extracted chunks, delete, rebuild the vector index.
-- **AI Assistant**: chat with citations, supporting passages, page images, interpretation and conflict markers, and a recovery trace.
-- **Academic Data Lab**: generate factual, conceptual, procedural, comparative and unanswerable QA pairs (optional Malayalam). Quality checks cover duplicates, inconsistent answers, missing fields, unsupported claims or numbers, traceability and answerability. Includes a review workflow (AI-generated, auto-validated, human-reviewed, rejected), export to JSONL or CSV, and the Adaption workflow.
-- **Reliability Demo**: side-by-side normal vs. injected failure, a fault suite, and persistent fault switches.
-- **Evaluation**: hit rate@k, MRR, citation correctness, evidence support, correct and false abstention, and p50/p95 latency under normal and simulated-failure conditions. Every run is saved, and its limitations are listed.
-
-## Adaption integration
-
-RAGuard uses the official `adaption` SDK ([docs](https://docs.adaptionlabs.ai)):
-
-1. **Upload**: validated QA records go up as `prompt` / `completion` / `context` rows, plus `record_id` (`datasets.upload_file`, `get_status`).
-2. **Estimate**: `datasets.adapt(..., estimate=True)` returns the credit cost before anything is spent.
-3. **Adapt**: a real Adaptive Data run, started only after an explicit confirmation checkbox.
-4. **Evaluate**: `datasets.get_evaluation` returns Adaption's own quality score and grade, before and after.
-5. **Download**: adapted rows are joined back to their source pages by `record_id`. Rows that can't be joined are reported, not guessed. The result is saved as `<dataset>_adapted`, so the Evaluation page can compare the original and adapted question sets on the same sources.
-
-Every call is logged to `data/adaption/operations.jsonl` and shown in the UI.
+**Stage 1 results:** see `eval/results/` (filled in when the live run is done).
 
 ## Tests
 
 ```bash
-pytest -q
+pytest -q                 # everything (offline; the LLM is always mocked)
+pytest -q tests/stage1    # Stage 1 only: needs no model files (uses a hashing test embedder)
 ```
 
-The suite covers extraction and page mapping, OCR, invalid uploads, idempotent re-upload, deletion, relevant
-retrieval, abstention, ChromaDB outage and embedding failure or timeout fallback, empty and irrelevant vector
-results, manifest mismatch, citation validation, invented-number detection, LLM-failure fallback, dataset
-duplicate, inconsistency and answerability checks, export round-trips, Adaption status and error handling,
-download parsing, and metric correctness.
+`tests/stage3` and `tests/extras` use the real MiniLM model from `./models`; they are skipped if it hasn't
+been downloaded. Four Stage 3 tests are marked as expected failures until the relevance gate is
+recalibrated in Stage 3.
 
-## Measured on the sample set (retrieval only, no LLM)
+## Extras (off by default)
 
-On the 24 hand-written golden questions (`evaluation/golden_questions.json`), with the three synthetic sample documents:
+`FEATURE_EXTRAS=1` adds the Academic Data Lab (QA dataset generation, quality checks, review, JSONL/CSV export),
+the Adaption Adaptive Data integration (`ADAPTION_API_KEY`) and an Evaluation page. These aren't part of any stage.
 
-| Condition | Hit rate@6 | MRR | Correct abstention | False abstention | Recovered requests |
-|---|---|---|---|---|---|
-| Normal | 100% | 0.95 | 100% (5/5) | 0% | 0 |
-| ChromaDB outage (simulated) | 100% | 0.97 | 100% (5/5) | 10.5% (2/19) | 24/24 |
+Claude is available as an optional extra provider (`LLM_CHAIN=gemini,anthropic`). It is not in the default chain.
 
-Limitations: this is a tiny synthetic corpus. The relevance thresholds were checked against this same set,
-so expect lower numbers on real documents. Re-run the Evaluation page on your own documents.
+## Known limitations
 
-## Sample documents
-
-`scripts/make_sample_docs.py` creates three PDFs for a **fictional** institution (regulations with a table and
-a bar chart, a syllabus with a diagram, and an admission notice with a scanned page). They are not real policies.
+- Fault injection (Stage 3) is process-wide: toggling a fault affects every open browser session. Demo only.
+- The sample documents describe a fictional institution and are tiny, so hit rates are high.
+  Measure on your own documents.
 
 ## Project layout
 
 ```
-app.py                 Streamlit entry point
-raguard/               config, ingestion, indexes, retrieval controller, answering, LLM client,
-                       data lab, Adaption client, evaluation, fault injection, service facade
-ui/                    one module per page + shared components
-scripts/               sample document generator
-evaluation/            golden question set
-tests/                 pytest suite
-data/                  runtime data (uploads, indexes, datasets, eval runs) - not committed
+app.py                 Streamlit entry point (pages depend on the stage)
+raguard/
+  config.py            settings, RAGUARD_STAGE, feature flags
+  interfaces.py        Parser, Embedder, Retriever, LLMProvider, AnswerChecker
+  ingestion.py         upload checks, PDFParser (stage 1) + OCR/visual parts (stage 2), ImageParser
+  indexes.py           embedder (local model files only), ChromaDB, BM25
+  retrieval.py         VectorRetriever (stage 1), ResilientRetriever (stage 3)
+  providers.py         Gemini, Ollama, Claude providers; retryable-error rules
+  llm.py               provider chain + token usage logging
+  answering.py         grounded prompt, BasicCitations (stage 1), EvidenceChecker (stage 3)
+  usage.py, scoring.py token log; eval scoring
+  service.py           builds the stage's components
+  faults.py            fault injection (stage 3)
+  datalab.py, adaption_client.py, evaluation.py   extras
+ui/                    pages
+eval/                  questions.json, run_eval.py, results/
+scripts/               download_models.py, make_sample_docs.py
+tests/                 stage1/, stage3/, extras/
 ```
