@@ -32,7 +32,8 @@ def render() -> None:
     st.caption("Try:")
     cols = st.columns(3)
     clicked = None
-    for i, q in enumerate(EXAMPLES):
+    examples = [q for q in EXAMPLES if rag.s.on("vision") or "chart" not in q]
+    for i, q in enumerate(examples):
         if cols[i % 3].button(q, key=f"ex{i}", width="stretch"):
             clicked = q
 

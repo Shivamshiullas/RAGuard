@@ -8,7 +8,7 @@ from pathlib import Path
 import streamlit as st
 
 from raguard.adaption_client import AdaptionService
-from raguard.answering import strip_context  # noqa: F401  (re-exported for pages)
+from raguard.answering import render_citations, strip_context
 from raguard.config import get_settings
 from raguard.datalab import DatasetStore
 from raguard.evaluation import Evaluator
@@ -108,37 +108,47 @@ def render_trace(events: list[RecoveryEvent]) -> None:
     st.markdown("".join(rows), unsafe_allow_html=True)
 
 
-MODE_TEXT = {"hybrid": ("Hybrid retrieval (vector + keyword)", "ok"),
+MODE_TEXT = {"vector": ("Vector search (top-k)", "info"),
+             "hybrid": ("Hybrid retrieval (vector + keyword)", "ok"),
              "hybrid_recovery": ("Recovered: weak vector results fused with keyword search", "warn"),
              "keyword_fallback": ("Recovered: vector search unavailable, used independent BM25 index", "warn"),
              "none": ("No evidence retrieved", "bad")}
-ANSWER_STATUS = {"answered": ("Grounded answer · citations verified", "ok"),
+ANSWER_STATUS = {"answered": ("Grounded answer", "ok"),
                  "extractive": ("Evidence only · no language model used", "info"),
                  "unverified": ("Unverified · model gave no valid citations", "bad"),
-                 "abstained": ("Abstained · insufficient evidence", "bad")}
+                 "abstained": ("Abstained · insufficient evidence", "bad"),
+                 "error": ("Error", "bad")}
+
+
+def source_label(i: int, ch) -> str:
+    return f"[{ch.filename}, p.{ch.page}]"
 
 
 def render_evidence(cands, numbered: bool = True, show_images: bool = True) -> None:
     for i, c in enumerate(cands, start=1):
         ch = c.chunk
-        kind = {"table": "table", "visual": "page image", "ocr": "OCR"}.get(ch.kind, "text")
-        tag = f"E{i} · " if numbered else ""
+        kind = {"table": "table", "figure": "page image", "ocr": "OCR"}.get(ch.kind, "text")
+        tag = f"{source_label(i, ch)} · " if numbered else f"{html.escape(ch.filename)} · page {ch.page} · "
         scores = []
         if c.vector_similarity is not None:
             scores.append(f"similarity {c.vector_similarity:.2f}")
         if c.keyword_score is not None:
             scores.append(f"BM25 {c.keyword_score:.1f}")
-        scores.append(f"term coverage {c.term_coverage:.2f}")
-        st.markdown(f'<div class="rg-evidence"><div class="src">{tag}{html.escape(ch.filename)} · page {ch.page} · {kind} '
+        if c.keyword_score is not None or "keyword" in c.found_by:
+            scores.append(f"term coverage {c.term_coverage:.2f}")
+        st.markdown(f'<div class="rg-evidence"><div class="src">{html.escape(tag)}{kind} '
                     f'<span class="rg-muted">({", ".join(scores)}; found by {", ".join(c.found_by) or "-"})</span></div>'
                     f'{html.escape(strip_context(ch.text)[:1200])}</div>', unsafe_allow_html=True)
-        if show_images and ch.image_path and ch.kind in {"visual", "ocr"} and Path(ch.image_path).exists():
+        if show_images and ch.image_path and ch.kind in {"figure", "table", "ocr"} and Path(ch.image_path).exists():
             with st.expander(f"View page {ch.page} image"):
                 st.image(ch.image_path, width="stretch")
 
 
 def render_answer(res: AnswerResult) -> None:
+    s = get_rag().s
     label, kind = ANSWER_STATUS.get(res.status, (res.status, "info"))
+    if res.status == "answered" and s.on("answer_checks"):
+        label = "Grounded answer · citations verified"
     mlabel, mkind = MODE_TEXT.get(res.retrieval.mode, (res.retrieval.mode, "info"))
     badges = pill(label, kind) + pill(mlabel, mkind)
     if res.retrieval.simulated or any(e.simulated for e in res.llm_events):
@@ -146,16 +156,17 @@ def render_answer(res: AnswerResult) -> None:
     if res.used_images:
         badges += pill(f"{len(res.used_images)} page image(s) sent to vision model", "info")
     st.markdown(badges, unsafe_allow_html=True)
-    text = res.text
-    text = re.sub(r"(?m)^(Interpretation:)", r"**\1**", text)
-    text = re.sub(r"(?m)^(Conflict:)", r"⚠️ **\1**", text)
+    text = render_citations(res.text, res.cited)
+    text = re.sub(r"(?m)^(Interpretation:)", r"****", text)
+    text = re.sub(r"(?m)^(Conflict:)", r"⚠️ ****", text)
     st.markdown(text)
     for w in res.warnings:
         st.caption(f"⚠ {w}")
     if res.cited:
         with st.expander(f"Sources ({len(res.cited)})", expanded=res.status != "abstained"):
             render_evidence(res.cited)
-    with st.expander("Recovery trace and timing"):
+    title = "Recovery events" if s.on("fallbacks") else "Details"
+    with st.expander(title):
         st.caption(f"Total {res.latency_ms:.0f} ms · retrieval {res.retrieval.latency_ms:.0f} ms · model: {res.provider}")
         render_trace(res.all_events)
         if res.status == "abstained" and res.retrieval.candidates:

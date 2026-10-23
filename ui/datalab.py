@@ -56,11 +56,11 @@ def _generate_section(rag) -> None:
             st.caption(f"ℹ {n}")
 
     st.caption("Or start from the hand-written test set for the sample documents:")
-    if st.button("Import golden test set (24 human-written questions)"):
-        recs, skipped = load_golden(ROOT / "evaluation" / "golden_questions.json", rag.registry.all_chunks())
+    if st.button("Import the shared question set (human-written)"):
+        recs, skipped = load_golden(ROOT / "eval" / "questions.json", rag.registry.all_chunks())
         if recs:
             summary = check_quality(recs, rag.registry.chunk_by_id(), rag.retrieve)
-            _save("golden_set", recs, quality=summary, source="evaluation/golden_questions.json")
+            _save("golden_set", recs, quality=summary, source="eval/questions.json")
             st.session_state["dataset"] = "golden_set"
             st.success(f"Imported {len(recs)} human-reviewed records.")
         if skipped:

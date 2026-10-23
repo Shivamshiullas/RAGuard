@@ -9,6 +9,8 @@ import streamlit as st
 
 from raguard.config import ROOT
 
+from raguard.ingestion import supported_types
+
 from .common import get_rag, hero, pill, simulated_banner, strip_context
 
 SAMPLE_DIR = ROOT / "sample_docs"
@@ -42,14 +44,15 @@ def render() -> None:
 
     up_col, sample_col = st.columns([3, 1])
     with up_col:
-        files = st.file_uploader("Upload academic documents (PDF, PNG or JPG, max 25 MB each)",
-                                 type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
+        types = sorted(t.strip(".") for t in supported_types(rag.s))
+        files = st.file_uploader(f"Upload academic documents ({', '.join(t.upper() for t in types)}, "
+                                 f"max {rag.s.max_upload_mb} MB each)", type=types, accept_multiple_files=True)
         if files and st.button(f"Process {len(files)} file(s)", type="primary"):
             _ingest(rag, [(f.name, f.getvalue()) for f in files])
     with sample_col:
         st.markdown("**Sample set**")
-        st.caption("Three synthetic documents from a fictional institute: regulations (with a table and chart), "
-                   "a syllabus (with a diagram) and an admission notice (with a scanned page).")
+        st.caption("Synthetic documents from a fictional institute: regulations, a syllabus and an admission "
+                   "notice. Some pages are scanned or visual; they are only indexed from Stage 2 on.")
         if st.button("Load sample documents"):
             if not list(SAMPLE_DIR.glob("*.pdf")):
                 subprocess.run([sys.executable, str(ROOT / "scripts" / "make_sample_docs.py"), str(SAMPLE_DIR)], check=True)
@@ -60,14 +63,14 @@ def render() -> None:
     head, tools = st.columns([3, 2])
     head.subheader(f"Library ({len(docs)})")
     with tools:
-        if st.button("Rebuild vector index from source", help="Re-embeds every chunk from the local chunk store. "
+        if rag.s.on("fallbacks") and st.button("Rebuild vector index from source", help="Re-embeds every chunk from the local chunk store. "
                      "Use after a ChromaDB outage, corruption or an embedding-model change."):
             with st.spinner("Re-embedding all chunks…"):
                 st.info(rag.rebuild_vector_index())
     h = rag.index_health()
     st.markdown(pill(f"ChromaDB: {h['chroma']} ({h['chroma_chunks'] if h['chroma_chunks'] is not None else '?'} vectors)",
                      "ok" if h["chroma"] == "online" else "bad") +
-                pill(f"BM25: {h['bm25_chunks']} chunks", "ok") +
+                (pill(f"BM25: {h['bm25_chunks']} chunks", "ok") if rag.s.on("bm25") else "") +
                 pill("indexes in sync" if h["in_sync"] else "indexes out of sync", "ok" if h["in_sync"] else "warn"),
                 unsafe_allow_html=True)
 
