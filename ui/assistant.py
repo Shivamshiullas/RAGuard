@@ -33,7 +33,7 @@ def render() -> None:
     cols = st.columns(3)
     clicked = None
     for i, q in enumerate(EXAMPLES):
-        if cols[i % 3].button(q, key=f"ex{i}", use_container_width=True):
+        if cols[i % 3].button(q, key=f"ex{i}", width="stretch"):
             clicked = q
 
     for turn in st.session_state.chat:

@@ -8,6 +8,7 @@ from pathlib import Path
 import streamlit as st
 
 from raguard.adaption_client import AdaptionService
+from raguard.answering import strip_context  # noqa: F401  (re-exported for pages)
 from raguard.config import get_settings
 from raguard.datalab import DatasetStore
 from raguard.evaluation import Evaluator
@@ -117,11 +118,6 @@ ANSWER_STATUS = {"answered": ("Grounded answer · citations verified", "ok"),
                  "abstained": ("Abstained · insufficient evidence", "bad")}
 
 
-def strip_context(text: str) -> str:
-    lines = text.strip().split("\n", 1)
-    return lines[1] if len(lines) == 2 and lines[0].startswith("[") else text
-
-
 def render_evidence(cands, numbered: bool = True, show_images: bool = True) -> None:
     for i, c in enumerate(cands, start=1):
         ch = c.chunk
@@ -138,7 +134,7 @@ def render_evidence(cands, numbered: bool = True, show_images: bool = True) -> N
                     f'{html.escape(strip_context(ch.text)[:1200])}</div>', unsafe_allow_html=True)
         if show_images and ch.image_path and ch.kind in {"visual", "ocr"} and Path(ch.image_path).exists():
             with st.expander(f"View page {ch.page} image"):
-                st.image(ch.image_path, use_container_width=True)
+                st.image(ch.image_path, width="stretch")
 
 
 def render_answer(res: AnswerResult) -> None:

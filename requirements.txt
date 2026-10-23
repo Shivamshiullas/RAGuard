@@ -1,0 +1,20 @@
+# Python 3.12 recommended (3.10-3.13 should work)
+pymupdf==2.0
+chromadb==1.5.9
+rank-bm25==0.2.2
+onnxruntime==1.31.0
+tokenizers==0.23.3
+huggingface-hub==2.3.0
+numpy==2.5.4
+streamlit==1.66.1
+pandas==3.1.0
+python-dotenv==1.2.4
+requests==2.34.2
+
+# Optional capabilities (the app runs without them and says so)
+rapidocr-onnxruntime==1.4.4   # OCR for scanned pages
+anthropic==2.2.0              # Claude answers + vision
+adaption==0.15.0              # Adaption Adaptive Data integration
+
+# Tests
+pytest==9.1.1

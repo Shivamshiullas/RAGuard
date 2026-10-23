@@ -31,6 +31,12 @@ that appear in the evidence.
 _CITE = re.compile(r"\[E(\d+)\]")
 
 
+def strip_context(text: str) -> str:
+    """Drop the '[document | page | heading]' line that ingestion prepends to each chunk."""
+    lines = text.strip().split("\n", 1)
+    return lines[1] if len(lines) == 2 and lines[0].startswith("[") else text
+
+
 def build_prompt(question: str, evidence: list[Candidate]) -> str:
     blocks = []
     for i, c in enumerate(evidence, start=1):
@@ -90,7 +96,7 @@ def extractive_answer(retrieval: RetrievalResult, max_passages: int = 3) -> tupl
     top = [c for c in retrieval.evidence if c.chunk.kind != "visual"][:max_passages] or retrieval.evidence[:max_passages]
     lines = ["**Most relevant passages** (no language model is configured, so these are shown verbatim):"]
     for i, c in enumerate(top, start=1):
-        snippet = " ".join(c.chunk.text.split())
+        snippet = " ".join(strip_context(c.chunk.text).split())
         snippet = snippet[:600] + ("…" if len(snippet) > 600 else "")
         lines.append(f"\n> {snippet} [E{i}]")
     return "\n".join(lines), top
