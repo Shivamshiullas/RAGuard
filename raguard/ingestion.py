@@ -203,12 +203,38 @@ def _split(text: str, size: int, overlap: int) -> list[str]:
     return chunks
 
 
+def _running_lines(pages: list[PageInfo]) -> set[str]:
+    """Lines repeated on most pages (running headers/footers) carry no page-specific meaning."""
+    if len(pages) < 2:
+        return set()
+    counts: dict[str, int] = {}
+    for p in pages:
+        for line in {l.strip() for l in p.text.splitlines() if l.strip()}:
+            counts[line] = counts.get(line, 0) + 1
+    return {l for l, n in counts.items() if n >= max(2, round(len(pages) * 0.66))}
+
+
+def _page_title(text: str) -> str:
+    for line in text.splitlines():
+        line = line.strip()
+        if 4 <= len(line) <= 90 and not line.endswith((".", ",")):
+            return line
+    return ""
+
+
 def build_chunks(report: ExtractionReport, doc_id: str, filename: str, version: str, s: Settings) -> list[Chunk]:
     chunks: list[Chunk] = []
+    running = _running_lines(report.pages)
+    doc_title = Path(filename).stem.replace("_", " ")
     for p in report.pages:
+        p.text = "\n".join(l for l in p.text.splitlines() if l.strip() not in running).strip()
         kind = "ocr" if p.source == "ocr" else "text"
+        # Each chunk starts with a short context line (document + page heading) so a passage like
+        # "Unit 3: Trees" can still be found by a question that mentions the course or syllabus.
+        title = _page_title(p.text)
+        header = f"[{doc_title} | page {p.page}{' | ' + title if title else ''}]"
         for n, piece in enumerate(_split(p.text, s.chunk_chars, s.chunk_overlap)):
-            chunks.append(Chunk(f"{doc_id}:p{p.page}:t{n}", doc_id, filename, p.page, piece, kind,
+            chunks.append(Chunk(f"{doc_id}:p{p.page}:t{n}", doc_id, filename, p.page, f"{header}\n{piece}", kind,
                                 p.image_path, version))
         for n, table in enumerate(p.tables):
             chunks.append(Chunk(f"{doc_id}:p{p.page}:tbl{n}", doc_id, filename, p.page,

@@ -23,7 +23,7 @@ from .faults import SimulatedFault, faults
 from .indexes import BM25Store, ChromaStore, Embedder, IndexMismatch
 from .models import Candidate, Chunk, RecoveryEvent, RetrievalResult
 from .registry import Registry
-from .text import content_terms, is_visual_query, term_coverage
+from .text import content_terms, is_visual_query, weighted_coverage
 
 log = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -115,7 +115,7 @@ class RetrievalController:
             query = query[:2000]
             events.append(RecoveryEvent("validation", "weak", "question truncated to 2000 characters"))
 
-        chunk_map = {c.chunk_id: c for c in self.bm25._chunks}
+        chunk_map = {c.chunk_id: c for c in self.bm25.chunks}
         allowed = set(doc_ids) if doc_ids else None
 
         # 1. manifest
@@ -193,6 +193,8 @@ class RetrievalController:
                 mode = "hybrid"
 
         # 5. fuse candidates
+        idf, unseen = self.bm25.idf()
+        cover = lambda text: weighted_coverage(query, text, idf, unseen)  # noqa: E731
         vec_rank = [cid for cid, _ in vector_hits if cid in chunk_map]
         kw_rank = [c.chunk_id for c, _ in keyword_hits]
         fused = rrf([vec_rank, kw_rank] if vec_rank else [kw_rank])
@@ -205,7 +207,7 @@ class RetrievalController:
                 continue
             found = (["vector"] if cid in vec_sim else []) + (["keyword"] if cid in kw_score else [])
             cands[cid] = Candidate(chunk, score, vec_sim.get(cid), kw_score.get(cid),
-                                   term_coverage(query, chunk.text), found)
+                                   cover(chunk.text), found)
 
         # 6. visual evidence
         visual = is_visual_query(query)
@@ -216,7 +218,7 @@ class RetrievalController:
                 if chunk.kind == "visual" and (chunk.doc_id, chunk.page) in top_pages and chunk.chunk_id not in cands:
                     best = max((c.score for c in cands.values() if (c.chunk.doc_id, c.chunk.page) == (chunk.doc_id, chunk.page)), default=0)
                     cands[chunk.chunk_id] = Candidate(chunk, best * 0.99, None, None,
-                                                      term_coverage(query, chunk.text), ["visual"])
+                                                      cover(chunk.text), ["visual"])
                     added += 1
             has_visual = any(c.chunk.kind == "visual" for c in cands.values())
             events.append(RecoveryEvent("visual", "ok" if has_visual else "weak",
@@ -225,9 +227,10 @@ class RetrievalController:
 
         ranked = sorted(cands.values(), key=lambda c: c.score, reverse=True)[: max(k, 8)]
 
-        # 7. relevance gate + sufficiency
+        # 7. relevance gate + sufficiency; passages that pass the gate are listed first
         for c in ranked:
             c.relevant = self._is_relevant(c)
+        ranked.sort(key=lambda c: (not c.relevant, -c.score))
         evidence = [c for c in ranked if c.relevant]
         sufficient, reason = self._sufficiency(query, evidence)
         events.append(RecoveryEvent("relevance", "ok" if sufficient else "abstain", reason))

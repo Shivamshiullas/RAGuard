@@ -20,6 +20,40 @@ class IndexMismatch(RuntimeError):
 
 
 # Embeddings ------------------------------------------------------------------------------
+def _onnx_embedder(model: str):
+    """Sentence-transformers model run with ONNX Runtime (no PyTorch): mean pooling + L2 norm."""
+    import numpy as np
+    import onnxruntime as ort
+    from huggingface_hub import hf_hub_download
+    from tokenizers import Tokenizer
+
+    repo = model if "/" in model else f"sentence-transformers/{model}"
+    tok = Tokenizer.from_file(hf_hub_download(repo, "tokenizer.json"))
+    tok.enable_truncation(256)
+    tok.enable_padding(pad_id=0, pad_token="[PAD]")
+    session = ort.InferenceSession(hf_hub_download(repo, "onnx/model.onnx"), providers=["CPUExecutionProvider"])
+    input_names = {i.name for i in session.get_inputs()}
+
+    def embed(texts):
+        out: list[list[float]] = []
+        texts = list(texts)
+        for start in range(0, len(texts), 32):
+            enc = tok.encode_batch(texts[start:start + 32])
+            ids = np.array([e.ids for e in enc], dtype=np.int64)
+            mask = np.array([e.attention_mask for e in enc], dtype=np.int64)
+            feeds = {"input_ids": ids, "attention_mask": mask}
+            if "token_type_ids" in input_names:
+                feeds["token_type_ids"] = np.zeros_like(ids)
+            hidden = session.run(None, feeds)[0]
+            m = mask[..., None].astype(np.float32)
+            pooled = (hidden * m).sum(1) / np.clip(m.sum(1), 1e-9, None)
+            pooled /= np.clip(np.linalg.norm(pooled, axis=1, keepdims=True), 1e-12, None)
+            out.extend(pooled.astype(float).tolist())
+        return out
+
+    return embed
+
+
 class Embedder:
     def __init__(self, s: Settings):
         self.s = s
@@ -39,10 +73,7 @@ class Embedder:
                     model = SentenceTransformer(self.s.embedding_model)
                     self._fn = lambda texts: model.encode(list(texts), normalize_embeddings=True).tolist()
                 else:
-                    from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
-
-                    onnx = ONNXMiniLM_L6_V2()
-                    self._fn = lambda texts: [list(map(float, v)) for v in onnx(list(texts))]
+                    self._fn = _onnx_embedder(self.s.embedding_model)
         return self._fn
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
@@ -150,6 +181,20 @@ class BM25Store:
     @property
     def size(self) -> int:
         return len(self._chunks)
+
+    @property
+    def chunks(self) -> list[Chunk]:
+        with self._lock:
+            return list(self._chunks)
+
+    def idf(self) -> tuple[dict[str, float], float]:
+        """Term weights from the corpus, plus the weight used for words not in the corpus."""
+        with self._lock:
+            bm25 = self._bm25
+        if bm25 is None:
+            return {}, 1.0
+        idf = dict(bm25.idf)
+        return idf, max(idf.values(), default=1.0)
 
     def search(self, query: str, k: int, doc_ids: list[str] | None = None) -> list[tuple[Chunk, float]]:
         with self._lock:

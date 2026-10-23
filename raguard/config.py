@@ -133,7 +133,7 @@ def get_settings() -> Settings:
         top_k=_int("TOP_K", 6),
         retry_attempts=_int("RETRY_ATTEMPTS", 2),
         backoff_base_s=_float("BACKOFF_BASE_S", 0.2),
-        embed_timeout_s=_float("EMBED_TIMEOUT_S", 8.0),
+        embed_timeout_s=_float("EMBED_TIMEOUT_S", 3.0),
         vector_timeout_s=_float("VECTOR_TIMEOUT_S", 4.0),
         request_deadline_s=_float("REQUEST_DEADLINE_S", 20.0),
         vector_min_similarity=_float("VECTOR_MIN_SIMILARITY", 0.35),
