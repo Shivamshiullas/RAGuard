@@ -157,7 +157,7 @@ class Evaluator:
             run_id=time.strftime("%Y%m%d-%H%M%S"), dataset=dataset, label=label, created_at=time.time(),
             config={"top_k": k, "llm": self.rag.llm.description if use_llm else "none (retrieval only)",
                     "embedder": self.rag.embedder.name, "faults": list(fault_flags),
-                    "vector_min_similarity": self.rag.s.vector_min_similarity,
+                    "min_cosine": self.rag.s.min_cosine,
                     "min_term_coverage": self.rag.s.min_term_coverage},
             metrics=compute_metrics(outcomes, k), outcomes=outcomes, limitations=limitations)
         self.save(run)

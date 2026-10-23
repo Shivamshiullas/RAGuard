@@ -322,20 +322,22 @@ def check_quality(records: list[QARecord], chunk_map: dict[str, Chunk], retrieve
 
 
 def load_golden(path: Path, chunks: list[Chunk]) -> tuple[list[QARecord], list[str]]:
-    """Load the hand-written test set, resolving filename/page to the indexed chunks.
+    """Load the shared hand-written question set (eval/questions.json), resolving file/page to chunks.
 
     Questions whose document is not in the library are skipped and reported.
     """
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     by_page: dict[tuple[str, int], Chunk] = {}
     for c in chunks:
-        if c.kind != "visual":
+        if c.kind != "figure":
             by_page.setdefault((c.filename, c.page), c)
     records, skipped = [], []
-    for i, q in enumerate(data["questions"]):
-        answerable = q["type"] != "unanswerable"
-        rec = QARecord(f"golden-{i + 1:02d}", q["question"], q["answer"], q["type"], answerable,
-                       generator="human", review_status="human_reviewed")
+    for q in data["questions"]:
+        answerable = q.get("modality") != "none"
+        qtype = "comparative" if q["question"].lower().startswith("compare") else ("factual" if answerable else "unanswerable")
+        rec = QARecord(f"golden-{q['id']}", q["question"],
+                       q.get("expected_answer") or "The provided documents do not contain this information.",
+                       qtype, answerable, generator="human", review_status="human_reviewed")
         if answerable:
             src = by_page.get((q["file"], q["page"]))
             if src is None:
