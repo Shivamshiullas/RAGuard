@@ -87,7 +87,9 @@ def rrf(rank_lists: list[list[str]], k: int = 60) -> dict[str, float]:
     return scores
 
 
-class RetrievalController:
+class ResilientRetriever:
+    """Stage 3 retriever: vector + BM25 fusion with timeouts, retries, fallbacks and a relevance gate."""
+
     def __init__(self, s: Settings, registry: Registry, embedder: Embedder, chroma: ChromaStore, bm25: BM25Store):
         self.s, self.registry, self.embedder, self.chroma, self.bm25 = s, registry, embedder, chroma, bm25
 
@@ -175,11 +177,11 @@ class RetrievalController:
             vector_hits = []
         else:
             best = max((sc for _, sc in vector_hits), default=0.0)
-            if best < self.s.vector_min_similarity:
+            if best < self.s.min_cosine:
                 mode = "hybrid_recovery"
                 sim = faults.is_on("vector_empty") or faults.is_on("vector_irrelevant")
                 events.append(RecoveryEvent("relevance", "weak",
-                                            f"best vector similarity {best:.2f} is below {self.s.vector_min_similarity:.2f}; "
+                                            f"best vector similarity {best:.2f} is below {self.s.min_cosine:.2f}; "
                                             "fusing with keyword results", simulated=sim))
                 if not sim and vector_hits:
                     try:
@@ -197,7 +199,7 @@ class RetrievalController:
         cover = lambda text: weighted_coverage(query, text, idf, unseen)  # noqa: E731
         vec_rank = [cid for cid, _ in vector_hits if cid in chunk_map]
         kw_rank = [c.chunk_id for c, _ in keyword_hits]
-        fused = rrf([vec_rank, kw_rank] if vec_rank else [kw_rank])
+        fused = rrf([vec_rank, kw_rank] if vec_rank else [kw_rank], self.s.rrf_k)
         vec_sim = dict(vector_hits)
         kw_score = {c.chunk_id: sc for c, sc in keyword_hits}
         cands: dict[str, Candidate] = {}
@@ -215,12 +217,12 @@ class RetrievalController:
             top_pages = {(c.chunk.doc_id, c.chunk.page) for c in sorted(cands.values(), key=lambda c: -c.score)[:k]}
             added = 0
             for chunk in chunk_map.values():
-                if chunk.kind == "visual" and (chunk.doc_id, chunk.page) in top_pages and chunk.chunk_id not in cands:
+                if chunk.kind == "figure" and (chunk.doc_id, chunk.page) in top_pages and chunk.chunk_id not in cands:
                     best = max((c.score for c in cands.values() if (c.chunk.doc_id, c.chunk.page) == (chunk.doc_id, chunk.page)), default=0)
                     cands[chunk.chunk_id] = Candidate(chunk, best * 0.99, None, None,
                                                       cover(chunk.text), ["visual"])
                     added += 1
-            has_visual = any(c.chunk.kind == "visual" for c in cands.values())
+            has_visual = any(c.chunk.kind == "figure" for c in cands.values())
             events.append(RecoveryEvent("visual", "ok" if has_visual else "weak",
                                         f"added {added} page-image records from matching pages" if has_visual else
                                         "visual question, but no figure/scanned-page record matched; answer will rely on text"))
@@ -250,14 +252,14 @@ class RetrievalController:
         return self.chroma.query(self.embedder.embed_query(query), k, doc_ids)
 
     def _is_relevant(self, c: Candidate) -> bool:
-        if c.chunk.kind == "visual" and "visual" in c.found_by:
+        if c.chunk.kind == "figure" and "visual" in c.found_by:
             return True  # attached because its page already matched
-        sim_ok = c.vector_similarity is not None and c.vector_similarity >= self.s.vector_min_similarity
+        sim_ok = c.vector_similarity is not None and c.vector_similarity >= self.s.min_cosine
         cov_ok = c.term_coverage >= self.s.min_term_coverage
         # A strong semantic match counts on its own; a weaker one needs keyword agreement.
-        if c.vector_similarity is not None and c.vector_similarity >= self.s.vector_min_similarity + 0.15:
+        if c.vector_similarity is not None and c.vector_similarity >= self.s.min_cosine + self.s.strong_cosine_margin:
             return True
-        return (sim_ok and c.term_coverage >= 0.25) or cov_ok
+        return (sim_ok and c.term_coverage >= self.s.weak_match_coverage) or cov_ok
 
     def _sufficiency(self, query: str, evidence: list[Candidate]) -> tuple[bool, str]:
         if not content_terms(query):
@@ -270,3 +272,35 @@ class RetrievalController:
         if score < self.s.sufficiency_min_score:
             return False, f"Best evidence is weak (coverage {best_cov:.2f}, similarity {best_sim:.2f})."
         return True, f"{len(evidence)} relevant passages (best coverage {best_cov:.2f}, similarity {best_sim:.2f})."
+
+
+class VectorRetriever:
+    """Stage 1 retriever: embed the question, take ChromaDB's top-k. No fallbacks, no gate.
+
+    Failures propagate to the caller. Every hit is treated as evidence, so the LLM always
+    sees the top-k passages; the grounded prompt is what keeps it from guessing.
+    """
+
+    def __init__(self, s: Settings, registry: Registry, embedder: Embedder, chroma: ChromaStore):
+        self.s, self.registry, self.embedder, self.chroma = s, registry, embedder, chroma
+        self._chunks: dict[str, Chunk] = {}
+
+    def refresh(self) -> None:
+        self._chunks = {c.chunk_id: c for c in self.registry.all_chunks()}
+
+    def retrieve(self, query: str, doc_ids: list[str] | None = None, k: int | None = None) -> RetrievalResult:
+        t0 = time.monotonic()
+        query = (query or "").strip()
+        if not query:
+            return RetrievalResult(query, [], [RecoveryEvent("validation", "failed", "empty question")],
+                                   "none", False, "The question is empty.")
+        k = k or self.s.top_k
+        qvec = self.embedder.embed_query(query)
+        hits = self.chroma.query(qvec, k, doc_ids)
+        cands = [Candidate(self._chunks[cid], sim, sim, None, 0.0, ["vector"], True)
+                 for cid, sim in hits if cid in self._chunks]
+        ms = (time.monotonic() - t0) * 1000
+        events = [RecoveryEvent("vector", "ok", f"ChromaDB returned {len(cands)} passages", ms)]
+        reason = f"top-{k} vector results" if cands else "No documents indexed yet."
+        return RetrievalResult(query, cands, events, "vector" if cands else "none", bool(cands), reason,
+                               is_visual_query(query), ms)
