@@ -1,0 +1,40 @@
+/* Design tokens. Change these to match the college's brand colours. */
+:root {
+  /* Colour */
+  --color-bg: #f7f4ee;            /* warm off-white page */
+  --color-surface: #fffdf9;       /* cards, composer, assistant bubbles */
+  --color-border: #e3ddd2;
+  --color-border-strong: #cfc7b8;
+  --color-text: #1f2a37;
+  --color-text-muted: #5f6b76;
+  --color-accent: #1f3a5f;        /* deep navy */
+  --color-accent-hover: #172d4a;
+  --color-accent-soft: #e8edf3;
+  --color-on-accent: #ffffff;
+  --color-secondary: #4a6b53;     /* muted forest green */
+  --color-focus: #2f6db5;
+
+  /* Type */
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --leading: 1.55;
+
+  /* Space and shape */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 999px;
+
+  --column-width: 760px;
+}
