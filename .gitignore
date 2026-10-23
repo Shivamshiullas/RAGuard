@@ -1,0 +1,19 @@
+# Secrets
+.env
+.env.*
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Generated / large local data
+data/
+models/
+logs/
+eval/.work/
+
+# Node
+node_modules/
+dist/
