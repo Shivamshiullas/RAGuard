@@ -31,7 +31,7 @@ def test_visual_pages_and_tables_detected(rag):
     reg = _doc(rag, "Academic_Regulations_2026.pdf")
     assert 3 in reg["visual_pages"]  # bar chart
     kinds = {c.kind for c in rag.registry.load_chunks(reg["doc_id"])}
-    assert "visual" in kinds
+    assert "figure" in kinds
 
 
 def test_running_header_removed(rag):
