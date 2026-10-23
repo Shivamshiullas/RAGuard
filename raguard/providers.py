@@ -31,6 +31,21 @@ class GeminiProvider:
         self.s = s
         self.model = s.gemini_model
         self._client = client  # injectable for tests
+        # Thinking controls differ between Gemini generations (thinking_budget vs thinking_level).
+        # Try the configured one first; if the model rejects it, fall back and remember what worked.
+        self._thinking_options = self._thinking_candidates()
+        self.thinking_mode = self._thinking_options[0][0]
+
+    def _thinking_candidates(self) -> list[tuple[str, dict | None]]:
+        opts: list[tuple[str, dict | None]] = []
+        if self.s.gemini_thinking_level:
+            opts.append((f"level={self.s.gemini_thinking_level}", {"thinking_level": self.s.gemini_thinking_level}))
+        if self.s.gemini_thinking_budget is not None:
+            opts.append((f"budget={self.s.gemini_thinking_budget}", {"thinking_budget": self.s.gemini_thinking_budget}))
+            if self.s.gemini_thinking_budget == 0 and not self.s.gemini_thinking_level:
+                opts.append(("level=minimal", {"thinking_level": "minimal"}))
+        opts.append(("model default", None))
+        return opts
 
     def available(self) -> tuple[bool, str]:
         try:
@@ -55,14 +70,23 @@ class GeminiProvider:
 
         contents: list = [types.Part.from_bytes(data=img, mime_type="image/png") for img in images]
         contents.append(user)
-        cfg = types.GenerateContentConfig(
-            system_instruction=system,
-            temperature=self.s.gemini_temperature,
-            max_output_tokens=min(max_tokens, self.s.gemini_max_output_tokens),
-            thinking_config=(types.ThinkingConfig(thinking_budget=self.s.gemini_thinking_budget)
-                             if self.s.gemini_thinking_budget is not None else None),
-        )
-        resp = self._get_client().models.generate_content(model=self.model, contents=contents, config=cfg)
+        while True:
+            mode, thinking = self._thinking_options[0]
+            cfg = types.GenerateContentConfig(
+                system_instruction=system,
+                temperature=self.s.gemini_temperature,
+                max_output_tokens=min(max_tokens, self.s.gemini_max_output_tokens),
+                thinking_config=types.ThinkingConfig(**thinking) if thinking else None,
+            )
+            try:
+                resp = self._get_client().models.generate_content(model=self.model, contents=contents, config=cfg)
+                self.thinking_mode = mode
+                break
+            except Exception as e:
+                rejected = getattr(e, "code", None) == 400 and "thinking" in str(e).lower()
+                if not rejected or len(self._thinking_options) == 1:
+                    raise
+                self._thinking_options.pop(0)  # this model doesn't accept that thinking setting
         um = getattr(resp, "usage_metadata", None)
         reply = LLMReply("", self.name, getattr(resp, "model_version", None) or self.model,
                          getattr(um, "prompt_token_count", None), getattr(um, "candidates_token_count", None),

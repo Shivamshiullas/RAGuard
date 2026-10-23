@@ -94,7 +94,8 @@ class Settings:
     gemini_model: str
     gemini_temperature: float
     gemini_max_output_tokens: int
-    gemini_thinking_budget: int | None  # None = model default
+    gemini_thinking_budget: int | None  # None = model default; stage 1 defaults to 0 (no thinking)
+    gemini_thinking_level: str  # for models that use levels (e.g. "minimal"); empty = not set
     anthropic_model: str
     anthropic_effort: str
     ollama_host: str
@@ -162,7 +163,9 @@ def load_settings(overrides: Mapping[str, str] | None = None) -> Settings:
     env = {**os.environ, **(overrides or {})}
 
     def get(name: str, default: str) -> str:
-        return str(env.get(name, default)).strip()
+        # An empty value in .env (e.g. "GEMINI_THINKING_BUDGET=") means "use the default".
+        v = env.get(name)
+        return default if v is None or str(v).strip() == "" else str(v).strip()
 
     stage = int(get("RAGUARD_STAGE", "1"))
     if stage not in STAGE_FEATURES:
@@ -173,7 +176,7 @@ def load_settings(overrides: Mapping[str, str] | None = None) -> Settings:
         if v is not None and v.strip() != "":
             (features.add if _bool(v) else features.discard)(f)
 
-    budget = get("GEMINI_THINKING_BUDGET", "")
+    budget = get("GEMINI_THINKING_BUDGET", "0" if stage == 1 else "")
     s = Settings(
         stage=stage,
         features=frozenset(features),
@@ -210,6 +213,7 @@ def load_settings(overrides: Mapping[str, str] | None = None) -> Settings:
         gemini_temperature=float(get("GEMINI_TEMPERATURE", "0.1")),
         gemini_max_output_tokens=int(get("GEMINI_MAX_OUTPUT_TOKENS", "1024")),
         gemini_thinking_budget=int(budget) if budget else None,
+        gemini_thinking_level=get("GEMINI_THINKING_LEVEL", ""),
         anthropic_model=get("ANTHROPIC_MODEL", "claude-opus-5-5"),
         anthropic_effort=get("ANTHROPIC_EFFORT", "medium"),
         ollama_host=get("OLLAMA_HOST", "http://localhost:11434"),
