@@ -43,7 +43,9 @@ class GeminiProvider:
         if self.s.gemini_thinking_budget is not None:
             opts.append((f"budget={self.s.gemini_thinking_budget}", {"thinking_budget": self.s.gemini_thinking_budget}))
             if self.s.gemini_thinking_budget == 0 and not self.s.gemini_thinking_level:
+                # Lowest level first; some models (e.g. gemini-3.8-flash) reject "minimal".
                 opts.append(("level=minimal", {"thinking_level": "minimal"}))
+                opts.append(("level=low", {"thinking_level": "low"}))
         opts.append(("model default", None))
         return opts
 
