@@ -11,9 +11,11 @@ __pycache__/
 
 # Generated / large local data
 data/
+!landiq/backend/landiq/data/
 models/
 logs/
 backend/storage/
+landiq/backend/storage/
 eval/.work/
 
 # Node

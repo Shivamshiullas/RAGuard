@@ -1,0 +1,653 @@
+[
+ {
+  "id": "#0472",
+  "zone": "Zone A",
+  "subDivision": "Km 42+350 to Km 44+100",
+  "surveyNo": "Sy. No. 142/3A, 142/3B, 143/1",
+  "villageName": "Kishangarh Khurd",
+  "district": "Rewari / Gurugram Border",
+  "areaHectares": 18.4,
+  "delayProbability": 82,
+  "riskCategory": "HIGH",
+  "legalStatus": "Dispute",
+  "legalDetails": "Title partition dispute pending before District Revenue Tribunal; interim stay application filed by 3 joint landholders.",
+  "compensationStatus": "Pending",
+  "compensationDetails": "Award of ₹14.85 Cr notified; ₹4.20 Cr deposited into tribunal escrow. Balance payment stalled awaiting inheritance succession cert.",
+  "compensationDisbursedPercent": 28,
+  "approvalStatus": "Delayed",
+  "approvalDetails": "Stage-II Forest Clearance & Tree Felling Sanction pending with State Forest Dept committee for >95 days.",
+  "rrProgress": 63,
+  "rrDetails": "Resettlement housing package 63% completed; 14 displaced families requested revision of transit rehabilitation allowance.",
+  "projectProgress": 71,
+  "estDelayDays": 140,
+  "shapContributions": [
+   {
+    "feature": "Legal Dispute",
+    "label": "Ongoing Legal Dispute (Tribunal Contest)",
+    "value": 0.31,
+    "impact": "high_positive",
+    "description": "Unresolved title suit significantly restricts statutory physical possession under RFCTLARR Section 38."
+   },
+   {
+    "feature": "Compensation Delay",
+    "label": "Pending Compensation Disbursement",
+    "value": 0.22,
+    "impact": "high_positive",
+    "description": "Less than 30% of aggregate award disbursed to titleholders, creating site hand-over resistance."
+   },
+   {
+    "feature": "Approval Delay",
+    "label": "Forest Stage-II Sanction Pending",
+    "value": 0.16,
+    "impact": "moderate_positive",
+    "description": "Statutory environmental clearance bottleneck blocking major bridge abutment earthworks."
+   },
+   {
+    "feature": "R&R Progress",
+    "label": "Lagging Resettlement Milestone (63%)",
+    "value": 0.08,
+    "impact": "moderate_positive",
+    "description": "Resettlement colony civil works lagging 2.5 months behind master baseline schedule."
+   },
+   {
+    "feature": "Project Progress",
+    "label": "Advanced Civil Subgrade Progress (71%)",
+    "value": -0.03,
+    "impact": "negative",
+    "description": "Contractor mobilization and adjacent chainage earthwork momentum slightly mitigates overall corridor risk."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-01",
+    "priority": "HIGH PRIORITY",
+    "title": "Resolve / Review Pending Legal Dispute",
+    "reason": "Legal dispute is the primary contributor (+0.31 SHAP value) to predicted acquisition delay.",
+    "suggestedAction": "Convene Lok Adalat fast-track mediation & invoke Section 77(2) RFCTLARR Act to deposit compensation in court and secure legal possession.",
+    "status": "Pending",
+    "targetAuthority": "District Revenue Officer & Competent Authority Land Acquisition (CALA)",
+    "estimatedImpactDays": -65
+   },
+   {
+    "id": "act-02",
+    "priority": "HIGH PRIORITY",
+    "title": "Review Compensation Status & Escrow Release",
+    "reason": "Pending award distribution (+0.22 SHAP value) causes landholder resistance and site handover embargo.",
+    "suggestedAction": "Release uncontested 70% share to verified heirs while escrowing disputed portions under Revenue Court supervision.",
+    "status": "In Review",
+    "targetAuthority": "Special Land Acquisition Officer (SLAO)",
+    "estimatedImpactDays": -40
+   },
+   {
+    "id": "act-03",
+    "priority": "MEDIUM PRIORITY",
+    "title": "Escalate Pending Forest Stage-II Clearance",
+    "reason": "Statutory approval delay (+0.16 SHAP value) prevents tree felling along chainage Km 43.",
+    "suggestedAction": "Trigger inter-departmental escalation through PM GatiShakti state coordination cell with MoEFCC Regional Office.",
+    "status": "Pending",
+    "targetAuthority": "State Forest Dept & MoEFCC Regional Cell",
+    "estimatedImpactDays": -25
+   },
+   {
+    "id": "act-04",
+    "priority": "MONITOR",
+    "title": "Track Rehabilitation & Resettlement (R&R) Delivery",
+    "reason": "Moderate delay contribution (+0.08 SHAP value) due to transit package grievances.",
+    "suggestedAction": "Deploy dedicated Gram Panchayat liaison officer to disburse revised transit allowances and expedite housing handover.",
+    "status": "In Review",
+    "targetAuthority": "Project Director PIU & R&R Commissioner",
+    "estimatedImpactDays": -15
+   }
+  ],
+  "coordinates": [
+   28.4595,
+   77.0266
+  ],
+  "polygonCoords": [
+   [
+    28.4635,
+    77.021
+   ],
+   [
+    28.4645,
+    77.032
+   ],
+   [
+    28.455,
+    77.034
+   ],
+   [
+    28.454,
+    77.023
+   ]
+  ]
+ },
+ {
+  "id": "#0511",
+  "zone": "Zone B",
+  "subDivision": "Km 56+200 to Km 58+000",
+  "surveyNo": "Sy. No. 88/1, 88/4",
+  "villageName": "Rampura Kalan",
+  "district": "Rewari",
+  "areaHectares": 12.6,
+  "delayProbability": 76,
+  "riskCategory": "HIGH",
+  "legalStatus": "Clear",
+  "legalDetails": "No pending court litigations; title documents verified by CALA.",
+  "compensationStatus": "Pending",
+  "compensationDetails": "Award determination appealed by 18 landowners requesting commercial multiplier rate.",
+  "compensationDisbursedPercent": 15,
+  "approvalStatus": "Delayed",
+  "approvalDetails": "Railway crossing overhead utility shifting clearance delayed by zonal railway division.",
+  "rrProgress": 58,
+  "rrDetails": "Commercial shopkeeper rehabilitation plan pending municipal allotment.",
+  "projectProgress": 69,
+  "estDelayDays": 110,
+  "shapContributions": [
+   {
+    "feature": "Compensation Delay",
+    "label": "Commercial Rate Dispute on Award",
+    "value": 0.34,
+    "impact": "high_positive",
+    "description": "Compensation rate appeal halting possession."
+   },
+   {
+    "feature": "Approval Delay",
+    "label": "Railway Utility Clearance Delay",
+    "value": 0.24,
+    "impact": "high_positive",
+    "description": "Railway GAD approval pending."
+   },
+   {
+    "feature": "R&R Progress",
+    "label": "Shopkeeper Rehabilitation Backlog",
+    "value": 0.12,
+    "impact": "moderate_positive",
+    "description": "Alternative vendor market site incomplete."
+   },
+   {
+    "feature": "Legal Status",
+    "label": "Clear Land Title Record",
+    "value": -0.05,
+    "impact": "negative",
+    "description": "Zero civil court stays accelerates potential resolution."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-0511-1",
+    "priority": "HIGH PRIORITY",
+    "title": "Review Compensation Rate Revision",
+    "reason": "Landowners demanding parity with adjacent urban master plan circle rates.",
+    "suggestedAction": "Hold CALA district collector arbitration session to reconcile rate valuation.",
+    "status": "Pending",
+    "targetAuthority": "District Collector & SLAO",
+    "estimatedImpactDays": -45
+   },
+   {
+    "id": "act-0511-2",
+    "priority": "HIGH PRIORITY",
+    "title": "Accelerate Railway Utility Shifting GAD",
+    "reason": "Clearance delayed by 60+ days.",
+    "suggestedAction": "Escalate to Divisional Railway Manager (DRM) for expedited GAD approval.",
+    "status": "In Review",
+    "targetAuthority": "Zonal Railway Engineering Division",
+    "estimatedImpactDays": -30
+   }
+  ],
+  "coordinates": [
+   28.482,
+   77.065
+  ],
+  "polygonCoords": [
+   [
+    28.485,
+    77.06
+   ],
+   [
+    28.486,
+    77.07
+   ],
+   [
+    28.478,
+    77.072
+   ],
+   [
+    28.477,
+    77.062
+   ]
+  ]
+ },
+ {
+  "id": "#0732",
+  "zone": "Zone D",
+  "subDivision": "Km 91+400 to Km 93+100",
+  "surveyNo": "Sy. No. 209/A, 210/B",
+  "villageName": "Fatehpur Bir",
+  "district": "Gurugram Rural",
+  "areaHectares": 24.1,
+  "delayProbability": 71,
+  "riskCategory": "HIGH",
+  "legalStatus": "Dispute",
+  "legalDetails": "Writ petition on acquisition notification validity in High Court.",
+  "compensationStatus": "Disbursed",
+  "compensationDetails": "100% of compensation deposited in bank accounts; 12 unencumbered parcels cleared.",
+  "compensationDisbursedPercent": 100,
+  "approvalStatus": "Pending",
+  "approvalDetails": "Gas pipeline authority safety NOC pending pipeline relocation study.",
+  "rrProgress": 67,
+  "rrDetails": "Farmer retraining and replacement agricultural plot allocation 67% complete.",
+  "projectProgress": 74,
+  "estDelayDays": 95,
+  "shapContributions": [
+   {
+    "feature": "Legal Dispute",
+    "label": "High Court Writ Petition",
+    "value": 0.32,
+    "impact": "high_positive",
+    "description": "Legal notice questioning Section 3D notification."
+   },
+   {
+    "feature": "Approval Delay",
+    "label": "Gas Pipeline Relocation NOC",
+    "value": 0.18,
+    "impact": "moderate_positive",
+    "description": "GAIL pipeline crossing safety sign-off."
+   },
+   {
+    "feature": "Compensation Disbursed",
+    "label": "100% Award Deposited",
+    "value": -0.15,
+    "impact": "negative",
+    "description": "Full compensation payout reduces landowner resistance."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-0732-1",
+    "priority": "HIGH PRIORITY",
+    "title": "File Urgent Vacate-Stay Application in High Court",
+    "reason": "National highway corridor public utility urgency exemption.",
+    "suggestedAction": "State Government counsel to present affidavit demonstrating urgent infrastructure timeline.",
+    "status": "Pending",
+    "targetAuthority": "Office of Advocate General & NHAI Legal Cell",
+    "estimatedImpactDays": -50
+   }
+  ],
+  "coordinates": [
+   28.521,
+   77.125
+  ],
+  "polygonCoords": [
+   [
+    28.525,
+    77.12
+   ],
+   [
+    28.527,
+    77.13
+   ],
+   [
+    28.517,
+    77.132
+   ],
+   [
+    28.515,
+    77.122
+   ]
+  ]
+ },
+ {
+  "id": "#0819",
+  "zone": "Zone A",
+  "subDivision": "Km 44+200 to Km 45+800",
+  "surveyNo": "Sy. No. 165/1, 166/2",
+  "villageName": "Kishangarh Khurd",
+  "district": "Rewari",
+  "areaHectares": 14.2,
+  "delayProbability": 68,
+  "riskCategory": "HIGH",
+  "legalStatus": "Dispute",
+  "legalDetails": "Boundary overlap dispute with state state irrigation canal right-of-way.",
+  "compensationStatus": "Pending",
+  "compensationDetails": "Award pending final joint survey with State Irrigation Department.",
+  "compensationDisbursedPercent": 35,
+  "approvalStatus": "Cleared",
+  "approvalDetails": "Environment and wildlife clearances obtained.",
+  "rrProgress": 60,
+  "rrDetails": "5 tenant families pending transit support.",
+  "projectProgress": 65,
+  "estDelayDays": 85,
+  "shapContributions": [
+   {
+    "feature": "Legal Dispute",
+    "label": "Canal ROW Overlap Dispute",
+    "value": 0.28,
+    "impact": "high_positive",
+    "description": "Inter-agency boundary delineation pending."
+   },
+   {
+    "feature": "Compensation Delay",
+    "label": "Pending Joint Survey Award",
+    "value": 0.2,
+    "impact": "moderate_positive",
+    "description": "Compensation calculation withheld."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-0819-1",
+    "priority": "HIGH PRIORITY",
+    "title": "Conduct Joint Total Station DGPS Survey",
+    "reason": "Resolve boundary demarcations between NHAI and Canal Dept.",
+    "suggestedAction": "Authorize joint boundary demarcation within 7 days.",
+    "status": "Pending",
+    "targetAuthority": "Joint Survey Taskforce",
+    "estimatedImpactDays": -30
+   }
+  ],
+  "coordinates": [
+   28.468,
+   77.042
+  ],
+  "polygonCoords": [
+   [
+    28.471,
+    77.038
+   ],
+   [
+    28.472,
+    77.048
+   ],
+   [
+    28.464,
+    77.049
+   ],
+   [
+    28.463,
+    77.04
+   ]
+  ]
+ },
+ {
+  "id": "#0245",
+  "zone": "Zone C",
+  "subDivision": "Km 72+100 to Km 74+000",
+  "surveyNo": "Sy. No. 54/1 to 54/8",
+  "villageName": "Bilaspur Jagir",
+  "district": "Gurugram Rural",
+  "areaHectares": 21,
+  "delayProbability": 54,
+  "riskCategory": "MEDIUM",
+  "legalStatus": "Clear",
+  "legalDetails": "No litigation. Mutation in revenue records ongoing.",
+  "compensationStatus": "In Progress",
+  "compensationDetails": "62% compensation disbursed. Minor bank account IFSC discrepancies in remaining payouts.",
+  "compensationDisbursedPercent": 62,
+  "approvalStatus": "Under Review",
+  "approvalDetails": "State electricity board transmission tower shifting estimate under approval.",
+  "rrProgress": 78,
+  "rrDetails": "Resettlement assistance 78% disbursed.",
+  "projectProgress": 82,
+  "estDelayDays": 45,
+  "shapContributions": [
+   {
+    "feature": "Approval Delay",
+    "label": "Electricity Tower Relocation Sanction",
+    "value": 0.15,
+    "impact": "moderate_positive",
+    "description": "Utility shifting estimate validation."
+   },
+   {
+    "feature": "Compensation In Progress",
+    "label": "Residual Banking Discrepancies",
+    "value": 0.09,
+    "impact": "low_positive",
+    "description": "Account reconciliation required for 12 accounts."
+   },
+   {
+    "feature": "Project Momentum",
+    "label": "High Civil Execution Progress (82%)",
+    "value": -0.12,
+    "impact": "negative",
+    "description": "Strong on-site progress dampens overall delay threat."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-0245-1",
+    "priority": "MEDIUM PRIORITY",
+    "title": "Approve Power Grid Shifting Budget",
+    "reason": "Transmission tower needs relocation prior to monsoon.",
+    "suggestedAction": "Sanction utility deposit to Haryana Vidyut Prasaran Nigam.",
+    "status": "In Review",
+    "targetAuthority": "Project Director & State Power Utility",
+    "estimatedImpactDays": -20
+   }
+  ],
+  "coordinates": [
+   28.5,
+   77.09
+  ],
+  "polygonCoords": [
+   [
+    28.503,
+    77.085
+   ],
+   [
+    28.505,
+    77.095
+   ],
+   [
+    28.496,
+    77.096
+   ],
+   [
+    28.495,
+    77.086
+   ]
+  ]
+ },
+ {
+  "id": "#0118",
+  "zone": "Zone A",
+  "subDivision": "Km 38+000 to Km 40+100",
+  "surveyNo": "Sy. No. 22/3",
+  "villageName": "Manesar West",
+  "district": "Gurugram",
+  "areaHectares": 16.5,
+  "delayProbability": 48,
+  "riskCategory": "MEDIUM",
+  "legalStatus": "Clear",
+  "legalDetails": "Clear ownership documents verified.",
+  "compensationStatus": "In Progress",
+  "compensationDetails": "74% disbursed; remaining awaiting power-of-attorney authentication from NRI co-owner.",
+  "compensationDisbursedPercent": 74,
+  "approvalStatus": "Cleared",
+  "approvalDetails": "All statutory clearances in place.",
+  "rrProgress": 81,
+  "rrDetails": "R&R implementation smooth.",
+  "projectProgress": 88,
+  "estDelayDays": 30,
+  "shapContributions": [
+   {
+    "feature": "Compensation In Progress",
+    "label": "NRI Power of Attorney Verification",
+    "value": 0.12,
+    "impact": "low_positive",
+    "description": "Consular POA attestation pending."
+   },
+   {
+    "feature": "Project Progress",
+    "label": "Advanced Project Progress (88%)",
+    "value": -0.14,
+    "impact": "negative",
+    "description": "Strong site delivery suppresses delay risk."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-0118-1",
+    "priority": "MONITOR",
+    "title": "Expedite NRI Co-owner POA Attestation",
+    "reason": "Allows final 26% compensation disbursement.",
+    "suggestedAction": "Coordinate with Indian Embassy portal for e-verification.",
+    "status": "In Review",
+    "targetAuthority": "SLAO Desk",
+    "estimatedImpactDays": -15
+   }
+  ],
+  "coordinates": [
+   28.442,
+   77.01
+  ],
+  "polygonCoords": [
+   [
+    28.445,
+    77.006
+   ],
+   [
+    28.446,
+    77.016
+   ],
+   [
+    28.438,
+    77.018
+   ],
+   [
+    28.437,
+    77.008
+   ]
+  ]
+ },
+ {
+  "id": "#0921",
+  "zone": "Zone E",
+  "subDivision": "Km 122+000 to Km 125+400",
+  "surveyNo": "Sy. No. 312/1 to 312/14",
+  "villageName": "Dharuhera South",
+  "district": "Rewari",
+  "areaHectares": 35,
+  "delayProbability": 22,
+  "riskCategory": "LOW",
+  "legalStatus": "Clear",
+  "legalDetails": "Zero legal disputes. Full revenue mutations completed.",
+  "compensationStatus": "Disbursed",
+  "compensationDetails": "98% compensation disbursed directly into Aadhaar-linked accounts.",
+  "compensationDisbursedPercent": 98,
+  "approvalStatus": "Cleared",
+  "approvalDetails": "Complete tree felling and utility shifting completed.",
+  "rrProgress": 94,
+  "rrDetails": "All displaced persons resettled in designated model colony.",
+  "projectProgress": 92,
+  "estDelayDays": 5,
+  "shapContributions": [
+   {
+    "feature": "Low Risk Profile",
+    "label": "High Milestone Completion Rate",
+    "value": -0.25,
+    "impact": "negative",
+    "description": "All statutory and financial gates cleared."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-0921-1",
+    "priority": "MONITOR",
+    "title": "Routine Final Handover Certification",
+    "reason": "Parcel cleared for final asphalt paving layer.",
+    "suggestedAction": "Issue formal possession certificate to civil concessionaire.",
+    "status": "Completed",
+    "targetAuthority": "PIU Resident Engineer",
+    "estimatedImpactDays": 0
+   }
+  ],
+  "coordinates": [
+   28.555,
+   77.165
+  ],
+  "polygonCoords": [
+   [
+    28.559,
+    77.16
+   ],
+   [
+    28.56,
+    77.172
+   ],
+   [
+    28.55,
+    77.174
+   ],
+   [
+    28.549,
+    77.162
+   ]
+  ]
+ },
+ {
+  "id": "#1044",
+  "zone": "Zone B",
+  "subDivision": "Km 62+000 to Km 64+500",
+  "surveyNo": "Sy. No. 94/2, 95/1",
+  "villageName": "Bawal Greenfield",
+  "district": "Rewari",
+  "areaHectares": 19.8,
+  "delayProbability": 14,
+  "riskCategory": "LOW",
+  "legalStatus": "Clear",
+  "legalDetails": "Clean title lineage validated by land records directorate.",
+  "compensationStatus": "Disbursed",
+  "compensationDetails": "100% award payment completed.",
+  "compensationDisbursedPercent": 100,
+  "approvalStatus": "Cleared",
+  "approvalDetails": "All clearances secured.",
+  "rrProgress": 98,
+  "rrDetails": "R&R package completed with beneficiary acknowledgement.",
+  "projectProgress": 96,
+  "estDelayDays": 0,
+  "shapContributions": [
+   {
+    "feature": "Low Risk Profile",
+    "label": "Complete Clearance & Financial Settlement",
+    "value": -0.32,
+    "impact": "negative",
+    "description": "Zero pending hurdles."
+   }
+  ],
+  "recommendations": [
+   {
+    "id": "act-1044-1",
+    "priority": "MONITOR",
+    "title": "Maintain Active Site Surveillance",
+    "reason": "Prevent post-possession encroachment.",
+    "suggestedAction": "Standard boundary fencing and drone perimeter monitoring.",
+    "status": "Completed",
+    "targetAuthority": "Site Patrol Unit",
+    "estimatedImpactDays": 0
+   }
+  ],
+  "coordinates": [
+   28.49,
+   77.08
+  ],
+  "polygonCoords": [
+   [
+    28.493,
+    77.076
+   ],
+   [
+    28.494,
+    77.085
+   ],
+   [
+    28.486,
+    77.086
+   ],
+   [
+    28.485,
+    77.078
+   ]
+  ]
+ }
+]
