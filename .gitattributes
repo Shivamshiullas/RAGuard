@@ -1,0 +1,8 @@
+# Binary files: never convert line endings (autocrlf would corrupt them on checkout).
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gpkg binary
+*.zip binary
+*.onnx binary
