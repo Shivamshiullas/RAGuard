@@ -170,6 +170,17 @@ export interface ApiError_ {
   at: string;
 }
 
+export interface ApiFailsafe {
+  agent: 'pdf' | 'gis';
+  trigger: string;
+  input_id: string | null;
+  filename: string | null;
+  reason: string;
+  fallback: string;
+  recovery: 'SUCCEEDED' | 'PARTIAL' | 'FAILED';
+  at: string;
+}
+
 export interface ApiAgentStatus {
   state: 'PENDING' | 'RUNNING' | 'RETRYING' | 'SUCCEEDED' | 'PARTIAL' | 'FAILED' | 'NEEDS_OCR' | 'SKIPPED';
   attempts: number;
@@ -179,6 +190,7 @@ export interface ApiAgentStatus {
   inputs: string[];
   errors: ApiError_[];
   warnings: string[];
+  failsafes: ApiFailsafe[];
 }
 
 export interface ApiStage {

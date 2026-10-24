@@ -357,6 +357,25 @@ class Case(Model):
 # ---------------------------------------------------------------------------
 
 
+class Recovery(str, Enum):
+    SUCCEEDED = "SUCCEEDED"  # the fallback produced full output for this input
+    PARTIAL = "PARTIAL"  # some output was kept, some was lost
+    FAILED = "FAILED"  # no output from this input
+
+
+class FailsafeEvent(Model):
+    """One failsafe that fired inside an agent: why, what fallback ran, and whether it recovered."""
+
+    agent: Literal["pdf", "gis"]
+    trigger: str  # short code, e.g. TRANSIENT_ERROR, NEEDS_OCR, CRS_MISSING
+    input_id: str | None = None
+    filename: str | None = None
+    reason: str
+    fallback: str
+    recovery: Recovery
+    at: str = Field(default_factory=utcnow)
+
+
 class AgentStatus(Model):
     state: AgentState = AgentState.PENDING
     attempts: int = 0
@@ -366,6 +385,7 @@ class AgentStatus(Model):
     inputs: list[str] = Field(default_factory=list)
     errors: list[ErrorInfo] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    failsafes: list[FailsafeEvent] = Field(default_factory=list)
     started_at: str | None = None
     finished_at: str | None = None
 

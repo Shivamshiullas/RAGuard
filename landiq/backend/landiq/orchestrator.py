@@ -44,8 +44,8 @@ from .prediction import readiness
 from .retrieval import index_chunks, retrieve
 from .runtime import get_repo
 from .schemas import (
-    AgentState, AgentStatus, AuditEvent, ErrorInfo, Job, JobIn, JobResults, JobState, MapAgentOutput, MapResult,
-    PdfAgentOutput, PdfDocumentResult, StageState, utcnow,
+    AgentState, AgentStatus, AuditEvent, ErrorInfo, FailsafeEvent, Job, JobIn, JobResults, JobState, MapAgentOutput,
+    MapResult, PdfAgentOutput, PdfDocumentResult, Recovery, StageState, utcnow,
 )
 
 log = logging.getLogger(__name__)
@@ -266,25 +266,97 @@ def _call_with_timeout(fn, timeout: float):
         pool.shutdown(wait=False)
 
 
-def _with_retries(ctx: Ctx, status: AgentStatus, label: str, fn):
+RETRY_REASONS = {
+    "TRANSIENT_ERROR": "a transient error",
+    "AGENT_TIMEOUT": "exceeding the agent time budget",
+    "AGENT_OUTPUT_INVALID": "schema-invalid output (rejected before storage)",
+}
+
+
+def _failsafe(status: AgentStatus, agent: str, trigger: str, reason: str, fallback: str, recovery: Recovery,
+              input_id: str | None = None, filename: str | None = None) -> None:
+    status.failsafes.append(FailsafeEvent(agent=agent, trigger=trigger, input_id=input_id, filename=filename,
+                                          reason=reason, fallback=fallback, recovery=recovery))
+
+
+def _with_retries(ctx: Ctx, status: AgentStatus, agent: str, input_id: str, label: str, fn):
     """Bounded retries with exponential backoff for transient errors only."""
     attempt = 0
+    failures: list[str] = []
+    limit = ctx.settings.agent_max_attempts
     while True:
         attempt += 1
         status.attempts += 1
         try:
-            return _call_with_timeout(fn, ctx.settings.agent_timeout_s)
+            result = _call_with_timeout(fn, ctx.settings.agent_timeout_s)
         except PermanentAgentError:
             raise
         except (TransientError, faults.InjectedTransientFault, OutputRejected, TimeoutError, OSError) as exc:
             code = "AGENT_TIMEOUT" if "TIMEOUT" in str(exc) else (
                 "AGENT_OUTPUT_INVALID" if isinstance(exc, OutputRejected) else "TRANSIENT_ERROR")
-            if attempt >= ctx.settings.agent_max_attempts:
+            failures.append(code)
+            if attempt >= limit:
+                _failsafe(status, agent, code, f"{len(failures)} attempt(s) failed with {RETRY_REASONS[code]}.",
+                          f"Automatic retry with exponential backoff ({limit} attempts); all failed, so this input "
+                          "was skipped. Results from other inputs were kept.", Recovery.FAILED, input_id, label)
                 raise TransientError(code) from exc
             status.state = AgentState.RETRYING
             status.warnings.append(f"{label}: attempt {attempt} failed ({code}); retrying.")
             ctx.save()
             time.sleep(_backoff(attempt))
+            continue
+        if failures:
+            _failsafe(status, agent, failures[0], f"{len(failures)} attempt(s) failed with {RETRY_REASONS[failures[0]]}.",
+                      f"Automatic retry with exponential backoff; succeeded on attempt {attempt} of {limit}.",
+                      Recovery.SUCCEEDED, input_id, label)
+        return result
+
+
+FALLBACK_QUARANTINE = ("No retry (retrying cannot fix an invalid file); file quarantined. Other inputs and the other "
+                       "agent carried on.")
+
+
+def _pdf_failsafes(status: AgentStatus, document_id: str, result: PdfDocumentResult) -> None:
+    ocr = [p for p in result.pages if p.ocr_engine]
+    unreadable = [p.page for p in result.pages if not p.usable]
+    if result.state == AgentState.NEEDS_OCR:
+        _failsafe(status, "pdf", "NEEDS_OCR", "PyMuPDF found no selectable text on any page (scanned document).",
+                  "OCR chain (local RapidOCR, then vision LLM) tried on every page; no readable text was recovered, "
+                  "so the document was skipped and nothing was guessed from it.", Recovery.FAILED, document_id,
+                  result.filename)
+        return
+    if ocr:
+        engines = ", ".join(sorted({p.ocr_engine for p in ocr}))
+        pages = ", ".join(str(p.page) for p in ocr)
+        _failsafe(status, "pdf", "OCR_USED", f"PyMuPDF found no selectable text on {len(ocr)} page(s) ({pages}).",
+                  f"Pages read by OCR ({engines}); extracted values are flagged for checking against the scan.",
+                  Recovery.SUCCEEDED, document_id, result.filename)
+    if unreadable:
+        _failsafe(status, "pdf", "PAGES_UNREADABLE",
+                  f"Page(s) {', '.join(map(str, unreadable))} had no readable text, even after OCR.",
+                  "Unreadable pages skipped; the rest of the document was used.", Recovery.PARTIAL, document_id,
+                  result.filename)
+
+
+def _map_failsafes(status: AgentStatus, map_id: str, result: MapResult) -> None:
+    if result.input_type != "vector":
+        _failsafe(status, "gis", "NO_GEOREFERENCE", "The map is an image/PDF without georeference.",
+                  "Stored as a visual reference only; no parcel geometry, intersections or distances derived.",
+                  Recovery.PARTIAL, map_id, result.filename)
+    for w in result.warnings:
+        if "declares no CRS" in w:
+            _failsafe(status, "gis", "CRS_ASSUMED", w.split(";")[0] + ".",
+                      "WGS84 assumed, as the file format's specification requires.", Recovery.SUCCEEDED, map_id,
+                      result.filename)
+    if result.state == AgentState.FAILED and result.error:
+        _failsafe(status, "gis", result.error.code, result.error.message,
+                  "No features stored or fused; file quarantined; spatial conclusions for affected cases disabled.",
+                  Recovery.FAILED, map_id, result.filename)
+    elif result.invalid_feature_count:
+        _failsafe(status, "gis", "GEOMETRY_INVALID",
+                  f"{result.invalid_feature_count} feature(s) had missing or invalid geometry.",
+                  f"Invalid features quarantined; {result.feature_count} valid feature(s) kept and used.",
+                  Recovery.PARTIAL, map_id, result.filename)
 
 
 FAILSAFE_PERMANENT = "Not retried: retrying cannot fix an invalid file. The file was quarantined; other inputs and the other agent carried on."
@@ -325,10 +397,11 @@ def _pdf_one(ctx: Ctx, status: AgentStatus, document_id: str) -> PdfDocumentResu
         return result, chunks
 
     try:
-        result, chunks = _with_retries(ctx, status, row.filename, attempt)
+        result, chunks = _with_retries(ctx, status, "pdf", document_id, row.filename, attempt)
     except PermanentAgentError as exc:
         status.errors.append(ErrorInfo(code=exc.code, message=str(exc), stage="pdf_agent", remediation=exc.remediation,
                                        input_id=document_id, filename=row.filename, failsafe=FAILSAFE_PERMANENT))
+        _failsafe(status, "pdf", exc.code, str(exc), FALLBACK_QUARANTINE, Recovery.FAILED, document_id, row.filename)
         _quarantine(ctx, document_id, exc.code)
         return PdfDocumentResult(document_id=document_id, filename=row.filename, state=AgentState.FAILED,
                                  error=status.errors[-1])
@@ -340,6 +413,7 @@ def _pdf_one(ctx: Ctx, status: AgentStatus, document_id: str) -> PdfDocumentResu
         return PdfDocumentResult(document_id=document_id, filename=row.filename, state=AgentState.FAILED,
                                  error=status.errors[-1])
 
+    _pdf_failsafes(status, document_id, result)
     if result.state in (AgentState.SUCCEEDED, AgentState.PARTIAL):
         _index(ctx, result, chunks)
     elif result.error:
@@ -379,10 +453,11 @@ def _map_one(ctx: Ctx, status: AgentStatus, map_id: str) -> MapResult | None:
         return result
 
     try:
-        result = _with_retries(ctx, status, row.filename, attempt)
+        result = _with_retries(ctx, status, "gis", map_id, row.filename, attempt)
     except PermanentAgentError as exc:
         status.errors.append(ErrorInfo(code=exc.code, message=str(exc), stage="map_agent", remediation=exc.remediation,
                                        input_id=map_id, filename=row.filename, failsafe=FAILSAFE_PERMANENT))
+        _failsafe(status, "gis", exc.code, str(exc), FALLBACK_QUARANTINE, Recovery.FAILED, map_id, row.filename)
         _quarantine(ctx, map_id, exc.code)
         return MapResult(map_id=map_id, filename=row.filename, state=AgentState.FAILED, input_type="vector",
                          error=status.errors[-1])
@@ -393,6 +468,7 @@ def _map_one(ctx: Ctx, status: AgentStatus, map_id: str) -> MapResult | None:
                                        failsafe=_failsafe_transient(ctx)))
         return MapResult(map_id=map_id, filename=row.filename, state=AgentState.FAILED, input_type="vector",
                          error=status.errors[-1])
+    _map_failsafes(status, map_id, result)
     if result.state == AgentState.FAILED and result.error:
         status.errors.append(result.error.model_copy(update={
             "input_id": map_id, "filename": row.filename,
@@ -433,6 +509,11 @@ def _run_agent(ctx: Ctx, kind: str) -> None:
             log.exception("%s agent crashed on %s", kind, input_id)
             status.errors.append(ErrorInfo(code="AGENT_CRASH", stage=f"{kind}_agent",
                                            message=f"The {kind} agent stopped unexpectedly on one input ({type(exc).__name__})."))
+            row = ctx.repo.get_input(input_id)
+            _failsafe(status, "pdf" if kind == "pdf" else "gis", "AGENT_CRASH",
+                      f"The agent stopped unexpectedly ({type(exc).__name__}).",
+                      "Crash isolated to this input: the remaining inputs and the other agent carried on.",
+                      Recovery.FAILED, input_id, row.filename if row else None)
             res = None
         if res is not None:
             results[input_id] = res
@@ -456,6 +537,10 @@ def act_run_agents(ctx: Ctx, _arg) -> str:
                 status.state = AgentState.FAILED
                 status.errors.append(ErrorInfo(code="AGENT_CRASH", stage=f"{kind}_agent",
                                                message=f"The {kind} agent stopped unexpectedly ({type(exc).__name__})."))
+                _failsafe(status, "pdf" if kind == "pdf" else "gis", "AGENT_CRASH",
+                          f"The agent stopped unexpectedly ({type(exc).__name__}).",
+                          "Crash isolated to this agent: the other agent's validated results were kept.",
+                          Recovery.FAILED)
     if ctx.job.retrieval.state == StageState.PENDING and ctx.pdf_results:
         ctx.job.retrieval.state = StageState.SUCCEEDED
     ctx.job.retrieval.checkpoint = any(r.chunk_count for r in ctx.pdf_results.values())

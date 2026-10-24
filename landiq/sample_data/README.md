@@ -6,7 +6,10 @@ All names, places and numbers are fictional. Regenerate with:
 python landiq\sample_data\generate.py             # PDFs + corridor_parcels.geojson
 python landiq\sample_data\generate_gis.py         # gis\  (valid GIS in every format)
 python landiq\sample_data\generate_bad_inputs.py  # bad_inputs\  (failsafe triggers)
+python landiq\sample_data\generate_failsafe_demo.py  # failsafe_demo\  (one set, both agents)
 ```
+
+**Quickest failsafe demo:** see [`failsafe_demo\README.md`](failsafe_demo/README.md). It is one upload set that triggers failsafes in both the PDF and GIS agents, with succeeded, partial and failed recoveries.
 
 ## Happy path
 

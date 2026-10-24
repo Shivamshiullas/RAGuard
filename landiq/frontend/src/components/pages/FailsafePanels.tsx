@@ -1,123 +1,87 @@
 import React from 'react';
-import { ShieldAlert, ShieldCheck, Ban } from 'lucide-react';
-import { ApiError_, ApiJob } from '../../api/client';
+import { ShieldAlert, ShieldCheck, Ban, FileText, Map as MapIcon } from 'lucide-react';
+import { ApiAgentStatus, ApiFailsafe, ApiJob } from '../../api/client';
 
-// ---- Failsafe report ------------------------------------------------------------------
+// ---- Per-agent failsafe status ----------------------------------------------------------
 
-interface FailsafeRow {
-  severity: 'error' | 'degraded';
-  source: string;
-  problem: string;
-  action: string;
-  fix?: string | null;
+type Recovery = ApiFailsafe['recovery'];
+
+const RECOVERY_STYLE: Record<Recovery, string> = {
+  SUCCEEDED: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  PARTIAL: 'bg-amber-100 text-amber-800 border-amber-300',
+  FAILED: 'bg-rose-100 text-rose-800 border-rose-300',
+};
+
+const RECOVERY_LABEL: Record<Recovery, string> = {
+  SUCCEEDED: 'Recovery succeeded',
+  PARTIAL: 'Partially recovered',
+  FAILED: 'Recovery failed',
+};
+
+const RecoveryBadge: React.FC<{ recovery: Recovery }> = ({ recovery }) => (
+  <span className={`inline-block text-[10px] font-bold uppercase border px-2 py-0.5 rounded ${RECOVERY_STYLE[recovery]}`}>
+    {RECOVERY_LABEL[recovery]}
+  </span>
+);
+
+/** Overall outcome for an agent: succeeded only if every fallback succeeded. */
+function overallRecovery(status: ApiAgentStatus): Recovery {
+  if (status.failsafes.every((f) => f.recovery === 'SUCCEEDED')) return 'SUCCEEDED';
+  if (status.state === 'FAILED' || status.state === 'NEEDS_OCR') return 'FAILED';
+  return 'PARTIAL';
 }
 
-// Warning text -> what LANDIQ did about it.
-const WARNING_ACTIONS: [RegExp, string][] = [
-  [/attempt \d+ failed .*retrying/i, 'Transient failure: retried automatically with exponential backoff.'],
-  [/invalid geometry .*quarantined|no geometry and was quarantined/i, 'Bad feature quarantined; the valid features were kept.'],
-  [/read by OCR/i, 'Scanned pages were read by OCR; their values are flagged for checking against the scan.'],
-  [/no georeference/i, 'Kept as a visual reference only; no parcel geometry or distances are derived from it.'],
-  [/without readable text were skipped/i, 'Unreadable pages skipped; the rest of the document was used.'],
-  [/OCR page limit/i, 'OCR stopped at the page limit to stay within the time budget.'],
-  [/No corridor alignment/i, 'Distance and intersection were not computed rather than guessed.'],
-  [/declares no CRS; WGS84 assumed/i, 'WGS84 assumed, as the file format requires.'],
-  [/could not be tied to a single case/i, 'Ambiguous facts were not merged into any case.'],
-  [/No validated spatial data/i, 'Spatial conclusions are disabled for these cases.'],
-];
-
-const errorRow = (e: ApiError_, fallbackSource: string): FailsafeRow => ({
-  severity: 'error',
-  source: e.filename ?? fallbackSource,
-  problem: `${e.code}: ${e.message}`,
-  action: e.failsafe ?? (e.transient ? 'Retried with backoff, then gave up on this input; other results were kept.' : 'Recorded; the rest of the job continued.'),
-  fix: e.remediation,
-});
-
-const warningRow = (w: string, source: string): FailsafeRow => ({
-  severity: 'degraded',
-  source,
-  problem: w,
-  action:
-    WARNING_ACTIONS.find(([re]) => re.test(w))?.[1] ??
-    (source === 'Retrieval' ? 'Retrieval fell back to the remaining index (DEGRADED) instead of failing.' : 'Recorded as a warning; processing continued.'),
-});
-
-function failsafeRows(job: ApiJob): FailsafeRow[] {
-  const rows: FailsafeRow[] = [
-    ...job.pdf_agent.errors.map((e) => errorRow(e, 'PDF agent')),
-    ...job.map_agent.errors.map((e) => errorRow(e, 'Map agent')),
-    ...job.errors.map((e) => errorRow(e, 'Orchestrator')),
-    ...job.pdf_agent.warnings.map((w) => warningRow(w, 'PDF agent')),
-    ...job.map_agent.warnings.map((w) => warningRow(w, 'Map agent')),
-    ...job.retrieval.warnings.map((w) => warningRow(w, 'Retrieval')),
-    ...job.fusion.warnings.map((w) => warningRow(w, 'Fusion')),
-  ];
-  const failed = [job.pdf_agent, job.map_agent].filter((a) => a.state === 'FAILED').length;
-  const ran = [job.pdf_agent, job.map_agent].filter((a) => a.state !== 'SKIPPED').length;
-  if (failed === 1 && ran === 2) {
-    const [bad, good] = job.pdf_agent.state === 'FAILED' ? ['PDF', 'map'] : ['map', 'PDF'];
-    rows.push({
-      severity: 'degraded',
-      source: 'Orchestrator',
-      problem: `The ${bad} agent failed.`,
-      action: `Agents are independent: the ${good} agent's validated results were kept and the job finished PARTIAL.`,
-    });
-  }
-  if (job.clarifications.length) {
-    rows.push({
-      severity: 'degraded',
-      source: 'Fusion',
-      problem: `${job.clarifications.length} parcel(s) match more than one case.`,
-      action: 'Not merged into any case until you answer the question below (job NEEDS CLARIFICATION).',
-    });
-  }
-  return rows;
-}
-
-export const FailsafeReport: React.FC<{ job: ApiJob }> = ({ job }) => {
-  const rows = failsafeRows(job);
-  if (!rows.length) {
-    return (
-      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
-        <ShieldCheck className="h-4 w-4" /> No failsafe was needed: every input was processed normally.
-      </div>
-    );
-  }
+const AgentFailsafeCard: React.FC<{ title: string; icon: React.ElementType; status: ApiAgentStatus }> = ({ title, icon: Icon, status }) => {
+  const triggered = status.failsafes.length > 0;
+  const running = status.state === 'RUNNING' || status.state === 'RETRYING' || status.state === 'PENDING';
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <div className="px-4 py-2.5 bg-slate-900 text-white text-xs font-bold flex items-center gap-2">
-        <ShieldAlert className="h-4 w-4 text-amber-300" /> Failsafes triggered ({rows.length})
-        <span className="font-normal text-slate-300">what went wrong, and what LANDIQ did instead of failing or guessing</span>
+    <div className={`rounded-xl border p-4 space-y-3 ${triggered ? 'border-amber-300 bg-amber-50/30' : 'border-emerald-200 bg-emerald-50/30'}`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+          <Icon className="h-4 w-4 text-blue-600" /> {title}
+        </span>
+        {triggered && <RecoveryBadge recovery={overallRecovery(status)} />}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px]">
-          <thead className="bg-slate-50 text-slate-500 uppercase text-[10px]">
-            <tr>
-              <th className="text-left px-3 py-2">Input / stage</th>
-              <th className="text-left px-3 py-2">What went wrong</th>
-              <th className="text-left px-3 py-2">Failsafe response</th>
-              <th className="text-left px-3 py-2">How to fix</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((r, i) => (
-              <tr key={i} className={r.severity === 'error' ? 'bg-rose-50/40' : 'bg-amber-50/30'}>
-                <td className="px-3 py-2 font-semibold text-slate-800 align-top whitespace-nowrap">
-                  <span className={`inline-block h-2 w-2 rounded-full mr-1.5 ${r.severity === 'error' ? 'bg-rose-500' : 'bg-amber-500'}`} />
-                  {r.source}
-                </td>
-                <td className="px-3 py-2 text-slate-700 align-top">{r.problem}</td>
-                <td className="px-3 py-2 text-slate-900 align-top">{r.action}</td>
-                <td className="px-3 py-2 text-slate-500 italic align-top">{r.fix ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      <div className={`text-sm font-extrabold flex items-center gap-1.5 ${triggered ? 'text-amber-800' : 'text-emerald-700'}`}>
+        {triggered ? <ShieldAlert className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+        {triggered ? `Failsafe Triggered: YES (${status.failsafes.length})` : 'Failsafe Triggered: NO.'}
       </div>
+      {!triggered && (
+        <p className="text-[11px] text-slate-500">
+          {status.state === 'SKIPPED' ? 'Agent not run: no inputs of this type.' : running ? 'Agent still running; no failsafe so far.' : 'Every input was processed normally.'}
+        </p>
+      )}
+
+      {status.failsafes.map((f, i) => (
+        <dl key={i} className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 text-[11px] p-3 rounded-lg bg-white border border-slate-200">
+          <dt className="font-semibold text-slate-500">Agent</dt>
+          <dd className="text-slate-900">{f.agent === 'pdf' ? 'PDF Agent (PyMuPDF)' : 'GIS Agent'}</dd>
+          <dt className="font-semibold text-slate-500">Input</dt>
+          <dd className="text-slate-900 font-mono break-all">{f.filename ?? 'whole agent'}</dd>
+          <dt className="font-semibold text-slate-500">Trigger</dt>
+          <dd className="text-slate-900 font-mono">{f.trigger}</dd>
+          <dt className="font-semibold text-slate-500">Reason</dt>
+          <dd className="text-slate-800">{f.reason}</dd>
+          <dt className="font-semibold text-slate-500">Fallback used</dt>
+          <dd className="text-slate-800">{f.fallback}</dd>
+          <dt className="font-semibold text-slate-500">Recovery</dt>
+          <dd><RecoveryBadge recovery={f.recovery} /></dd>
+        </dl>
+      ))}
     </div>
   );
 };
+
+export const FailsafeStatusPanel: React.FC<{ job: ApiJob }> = ({ job }) => (
+  <div className="space-y-2">
+    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Failsafe status</h4>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <AgentFailsafeCard title="PDF Agent (PyMuPDF)" icon={FileText} status={job.pdf_agent} />
+      <AgentFailsafeCard title="GIS Agent" icon={MapIcon} status={job.map_agent} />
+    </div>
+  </div>
+);
 
 // ---- Upload results ---------------------------------------------------------------------
 

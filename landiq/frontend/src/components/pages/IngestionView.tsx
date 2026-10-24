@@ -16,7 +16,7 @@ import {
 import { ProjectInfo } from '../../types';
 import { api, ApiAgentStatus, ApiError, ApiInput, ApiJob, ApiStage } from '../../api/client';
 import { PredictionChip } from '../common/StatusChips';
-import { FailsafeReport, UploadResult, UploadResults } from './FailsafePanels';
+import { FailsafeStatusPanel, UploadResult, UploadResults } from './FailsafePanels';
 
 interface IngestionViewProps {
   project: ProjectInfo;
@@ -315,7 +315,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
                 </div>
               )}
 
-              {!ACTIVE.has(job.state) && <FailsafeReport job={job} />}
+              <FailsafeStatusPanel job={job} />
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <AgentCard title="PDF Intelligence Agent" icon={FileText} status={job.pdf_agent} />

@@ -261,3 +261,48 @@ def test_retry_warning_names_the_file():
     with faults.injected("pdf_flaky"):
         job = run(pid)
     assert any(w.startswith("dossier.pdf: attempt 1 failed") for w in job.pdf_agent.warnings)
+
+
+# --- Failsafe status per agent ------------------------------------------------------
+
+
+def _events(status):
+    return [(e.agent, e.trigger, e.recovery.value) for e in status.failsafes]
+
+
+def test_no_failsafe_when_inputs_are_clean():
+    job = run(_setup(make_pdf([DOSSIER]), geojson([feature({"case_id": "#0472"}, square(77.02, 28.455))])))
+    assert job.pdf_agent.failsafes == [] and job.map_agent.failsafes == []
+
+
+def test_retry_that_recovers_is_reported_as_succeeded():
+    pid = _setup(make_pdf([DOSSIER]))
+    with faults.injected("pdf_flaky"):
+        job = run(pid)
+    assert _events(job.pdf_agent) == [("pdf", "TRANSIENT_ERROR", "SUCCEEDED")]
+    event = job.pdf_agent.failsafes[0]
+    assert event.filename == "dossier.pdf" and "succeeded on attempt 2" in event.fallback
+
+
+def test_exhausted_retries_and_bad_files_are_reported_as_failed():
+    pid = _setup(make_pdf([DOSSIER]), b'{"type": "FeatureCollection", "features": [')
+    with faults.injected("pdf_transient"):
+        job = run(pid)
+    assert _events(job.pdf_agent) == [("pdf", "TRANSIENT_ERROR", "FAILED")]
+    assert _events(job.map_agent) == [("gis", "MAP_UNREADABLE", "FAILED")]
+    assert "quarantined" in job.map_agent.failsafes[0].fallback
+
+
+def test_partial_geometry_and_scans_are_reported():
+    bowtie = {"type": "Polygon", "coordinates": [[[77.0, 28.4], [77.01, 28.41], [77.01, 28.4], [77.0, 28.41], [77.0, 28.4]]]}
+    pid = _setup(make_scanned_pdf(), geojson([feature({"case_id": "#0472"}, square(77.02, 28.455)), feature({}, bowtie)]))
+    job = run(pid)
+    assert _events(job.pdf_agent) == [("pdf", "NEEDS_OCR", "FAILED")]  # OCR engines are off in tests
+    assert _events(job.map_agent) == [("gis", "GEOMETRY_INVALID", "PARTIAL")]
+
+
+def test_agent_crash_is_isolated_and_reported():
+    pid = _setup(make_pdf([DOSSIER]), parcels_geojson())
+    with faults.injected("map_agent"):
+        job = run(pid)
+    assert _events(job.map_agent) == [("gis", "AGENT_CRASH", "FAILED")] and job.pdf_agent.failsafes == []
