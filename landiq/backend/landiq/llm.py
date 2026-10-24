@@ -174,6 +174,10 @@ class LLMClient:
 
         return self._run(prompt, system, json_mode=True, image=None, image_mime="", parser=parse)
 
+    def transcribe_image(self, image: bytes, image_mime: str, system: str) -> str:
+        """Plain-text transcription of an image by a vision-capable provider (used for OCR)."""
+        return self._run("Transcribe this page.", system, json_mode=False, image=image, image_mime=image_mime, vision=True)
+
     def has_vision(self) -> bool:
         return any(p.configured() and p.supports_vision() for p in self.providers)
 

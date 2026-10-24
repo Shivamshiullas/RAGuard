@@ -97,7 +97,7 @@ export const GisMapView: React.FC<GisMapViewProps> = ({ project, cases, features
       const p = f.properties;
       const label = linked
         ? `<strong>${escapeHtml(linked.id)}</strong> · ${escapeHtml(linked.villageName)}<br/>` +
-          (linked.delayProbability !== null ? `Illustrative delay prob: <b>${linked.delayProbability}%</b><br/>` : 'Prediction: not available<br/>')
+          (linked.delayProbability !== null ? `${linked.isSynthetic ? 'Illustrative delay prob' : 'Delay risk'}: <b>${linked.delayProbability}%</b><br/>` : 'Prediction: not available<br/>')
         : '<strong>Parcel not linked to a case</strong><br/>No verified case match (or awaiting clarification).<br/>';
       layer.bindPopup(
         `<div style="font-family:Inter,sans-serif;font-size:11px;min-width:190px">${label}` +

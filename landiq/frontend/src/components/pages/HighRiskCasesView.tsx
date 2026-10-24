@@ -79,14 +79,16 @@ export const HighRiskCasesView: React.FC<HighRiskCasesViewProps> = ({
               <AlertTriangle className="h-3 w-3" />
               Prioritized Queue
             </span>
-            {project.isDemo ? <IllustrativeBadge /> : <PredictionChip status="NOT_READY" />}
+            {project.isDemo ? <IllustrativeBadge /> : <PredictionChip status={rated ? 'READY' : 'NOT_READY'} />}
           </div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">
             High-Risk Acquisition Cases
           </h1>
           <p className="text-xs md:text-sm text-slate-500 mt-0.5">
             {rated
-              ? 'Cases ranked by illustrative delay risk (synthetic demo figures).'
+              ? project.isDemo
+                ? 'Cases ranked by illustrative delay risk (synthetic demo figures).'
+                : 'Cases ranked by rule-based delay risk (scorecard on evidence-backed statuses, not a trained model).'
               : 'No prediction model is available, so cases are listed with their evidence-backed statuses, not risk scores.'}
           </p>
         </div>
@@ -334,7 +336,7 @@ export const HighRiskCasesView: React.FC<HighRiskCasesViewProps> = ({
             <Info className="h-4 w-4 text-slate-400" />
             <span>
               Showing {filteredCases.length} cases •{' '}
-              {rated ? 'Ranked by illustrative synthetic delay figures' : 'No model ranking: prediction NOT_READY'}
+              {rated ? (project.isDemo ? 'Ranked by illustrative synthetic delay figures' : 'Ranked by rule-based scorecard') : 'No model ranking: prediction NOT_READY'}
             </span>
           </div>
           <span className="font-mono text-[11px] text-slate-400">

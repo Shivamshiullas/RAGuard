@@ -164,6 +164,9 @@ export interface ApiError_ {
   stage: string | null;
   transient: boolean;
   remediation: string | null;
+  input_id?: string | null;
+  filename?: string | null;
+  failsafe?: string | null;
   at: string;
 }
 

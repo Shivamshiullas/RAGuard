@@ -13,6 +13,12 @@ READY requires a model bundle (MODEL_PATH, a JSON file) that:
 The bundle format is a linear/logistic model, so per-feature contributions
 (coefficient x centred value) are the model's exact additive explanation.
 No pickle files are loaded.
+
+Without a configured bundle, RISK_SCORER=rules (the default) scores cases with a
+transparent rule-based scorecard: fixed, expert-set log-odds weights on the
+case's status fields. It is labelled as such everywhere (model_version
+"rules-v1"), is not trained on outcomes, and reports no accuracy. A case needs
+at least RULES_MIN_FIELDS scored status fields, otherwise it stays NOT_READY.
 """
 
 from __future__ import annotations
@@ -106,9 +112,66 @@ def model_status() -> tuple[ModelBundle | None, str]:
     return bundle, "ready"
 
 
+RULES_VERSION = "rules-v1"
+RULES_REASON = "Rule-based scorecard (expert-set weights, not trained on historical outcomes; no accuracy is claimed)."
+RULES_INTERCEPT = -1.5
+RULES_WEIGHTS: dict[str, dict[str, float]] = {  # log-odds per status value
+    "legal_status": {"IN_COURT": 2.0, "DISPUTE": 1.6, "PENDING_SETTLEMENT": 0.8, "CLEAR": -0.6},
+    "compensation_status": {"DISPUTED": 1.3, "PENDING": 1.0, "IN_PROGRESS": 0.4, "DISBURSED": -0.6},
+    "clearance_status": {"DELAYED": 1.2, "PENDING": 0.8, "UNDER_REVIEW": 0.5, "CLEARED": -0.5},
+    "rr_status": {"PENDING": 0.6, "IN_PROGRESS": 0.3, "COMPLETED": -0.4},
+}
+RULES_CONFLICT_WEIGHT = 0.8  # contradictory records are themselves a delay risk
+RULES_UNVERIFIED_FACTOR = 0.5  # free-text inferences count half
+RULES_MIN_FIELDS = 2
+
+
+def risk_band(probability: float | None) -> str:
+    """Same thresholds as the frontend's risk badge."""
+    if probability is None:
+        return "UNRATED"
+    return "HIGH" if probability >= 0.65 else "MEDIUM" if probability >= 0.35 else "LOW"
+
+
+def rules_active() -> bool:
+    settings = get_settings()
+    return not settings.model_path and settings.risk_scorer == "rules"
+
+
 def readiness() -> tuple[PredictionStatus, str]:
     bundle, reason = model_status()
-    return (PredictionStatus.READY, f"Model {bundle.model_version} is available.") if bundle else (PredictionStatus.NOT_READY, reason)
+    if bundle:
+        return PredictionStatus.READY, f"Model {bundle.model_version} is available."
+    if rules_active():
+        return PredictionStatus.READY, f"{RULES_VERSION}: {RULES_REASON}"
+    return PredictionStatus.NOT_READY, reason
+
+
+def score_rules(case: Case) -> Prediction:
+    contributions: dict[str, float] = {}
+    missing: list[str] = []
+    for name, weights in RULES_WEIGHTS.items():
+        fv = case.fields.get(name)
+        if fv is not None and fv.status == "CONFLICT":
+            contributions[name] = RULES_CONFLICT_WEIGHT
+        elif fv is not None and fv.status in ("KNOWN", "UNVERIFIED") and fv.value in weights:
+            factor = 1.0 if fv.status == "KNOWN" else RULES_UNVERIFIED_FACTOR
+            contributions[name] = weights[fv.value] * factor
+        else:
+            missing.append(name)
+    if len(contributions) < RULES_MIN_FIELDS:
+        return Prediction(status=PredictionStatus.NOT_READY, model_version=RULES_VERSION, missing_features=missing,
+                          reason=f"Too little evidence to score: fewer than {RULES_MIN_FIELDS} status fields are known.")
+    logit = RULES_INTERCEPT + sum(contributions.values())
+    snapshot = hashlib.sha256(json.dumps({k: str(case.fields[k].value) for k in contributions}, sort_keys=True)
+                              .encode()).hexdigest()[:16]
+    return Prediction(
+        status=PredictionStatus.READY, delay_probability=round(1 / (1 + math.exp(-logit)), 4),
+        model_version=RULES_VERSION, feature_snapshot_id=snapshot, missing_features=missing,
+        explanation_ref=json.dumps({"method": "rule-scorecard", "baseline_logit": RULES_INTERCEPT,
+                                    "contributions": {k: round(v, 4) for k, v in contributions.items()}}),
+        reason=RULES_REASON,
+    )
 
 
 def predict(case: Case) -> Prediction:
@@ -117,7 +180,7 @@ def predict(case: Case) -> Prediction:
                           reason="Synthetic demo case. Illustrative figures are not model output.")
     bundle, reason = model_status()
     if bundle is None:
-        return Prediction(status=PredictionStatus.NOT_READY, reason=reason)
+        return score_rules(case) if rules_active() else Prediction(status=PredictionStatus.NOT_READY, reason=reason)
     values: dict[str, float] = {}
     missing = []
     for name in bundle.required_features:

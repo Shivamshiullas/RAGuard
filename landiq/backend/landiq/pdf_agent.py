@@ -8,7 +8,9 @@ Reads selectable-text PDFs with PyMuPDF, page by page. Produces:
 Facts from explicitly labelled lines ("Legal status: Dispute") are VALIDATED;
 facts inferred from keywords in free text are UNVERIFIED. A fact is attached to
 a case only when its case section is unambiguous. Pages without usable text are
-reported; a document with no usable text returns NEEDS_OCR (OCR is out of scope).
+read with OCR (see ocr.py) up to OCR_MAX_PAGES per document; facts from OCR pages
+carry an "ocr:<engine>" extraction method and a warning to check them against the
+scan. A document with no usable text even after OCR returns NEEDS_OCR.
 
 Document text is data. Nothing in it can change what the agent does.
 """
@@ -22,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import faults
+from .ocr import OcrUnavailable, ocr_page
 from .config import get_settings
 from .schemas import AgentState, DocumentProvenance, ErrorInfo, Fact, PageReport, PdfDocumentResult, ValidationStatus
 
@@ -205,7 +208,8 @@ def _line_chunk(line: str, chunks: list[ChunkOut]) -> str | None:
 
 
 def _facts_for_page(document_id: str, filename: str, page: int, text: str, chunks: list[ChunkOut],
-                    carried: str | None, single_case: str | None) -> tuple[list[Fact], str | None]:
+                    carried: str | None, single_case: str | None,
+                    method: str = "rule:pattern") -> tuple[list[Fact], str | None]:
     facts: list[Fact] = []
     lines = [ln for ln in text.split("\n") if ln.strip()]
 
@@ -214,7 +218,7 @@ def _facts_for_page(document_id: str, filename: str, page: int, text: str, chunk
         digest = hashlib.sha1(f"{document_id}|{page}|{field_name}|{normalized}|{line}".encode()).hexdigest()[:12]
         facts.append(Fact(
             fact_id=f"F-{digest}", field=field_name, value=value.strip()[:200], normalized_value=normalized,
-            case_id=case_ref, parcel_id=parcel, extraction_method="rule:pattern",
+            case_id=case_ref, parcel_id=parcel, extraction_method=method,
             validation_status=ValidationStatus.VALIDATED if method_valid else ValidationStatus.UNVERIFIED,
             provenance=DocumentProvenance(document_id=document_id, filename=filename, page=page,
                                           chunk_id=_line_chunk(line, chunks), snippet=line.strip()[:300]),
@@ -290,6 +294,9 @@ def _open(path: Path):
     if doc.needs_pass:
         raise PermanentAgentError("PDF_ENCRYPTED", "The PDF is password-protected.", "Upload an unprotected copy.")
     if doc.page_count == 0:
+        if doc.is_repaired:  # MuPDF "repaired" a broken file into nothing
+            raise PermanentAgentError("PDF_CORRUPT", "The PDF is damaged and no pages could be recovered.",
+                                      "Re-export the PDF from its source and upload it again.")
         raise PermanentAgentError("PDF_EMPTY", "The PDF has no pages.", "Upload a PDF with content.")
     if doc.page_count > get_settings().max_pdf_pages:
         raise PermanentAgentError("PDF_TOO_LARGE", f"The PDF has more than {get_settings().max_pdf_pages} pages.",
@@ -313,6 +320,8 @@ def extract_document(document_id: str, filename: str, path: Path, mode: str = "t
 
     page_texts: dict[int, str] = {}
     reports: list[PageReport] = []
+    ocr_errors: set[str] = set()
+    ocr_skipped: list[int] = []
     for index, page in enumerate(doc):
         number = index + 1
         if only_pages and number not in only_pages:
@@ -324,18 +333,31 @@ def extract_document(document_id: str, filename: str, path: Path, mode: str = "t
             raw = page.get_text("text", sort=True)
         text = clean_text(raw)
         usable = sum(ch.isalnum() for ch in text) >= settings.min_page_chars
-        reports.append(PageReport(page=number, chars=len(text), usable=usable))
+        engine = None
+        if not usable:
+            if sum(1 for r in reports if r.ocr_engine) >= settings.ocr_max_pages:
+                ocr_skipped.append(number)
+            else:
+                try:
+                    ocr_text, engine = ocr_page(page)
+                    text = clean_text(ocr_text)
+                    usable = sum(ch.isalnum() for ch in text) >= settings.min_page_chars
+                except OcrUnavailable as exc:
+                    ocr_errors.add(str(exc))
+        reports.append(PageReport(page=number, chars=len(text), usable=usable, ocr_engine=engine if usable else None))
         if usable:
             page_texts[number] = text
     page_count = doc.page_count
     doc.close()
 
     if not page_texts:
+        detail = f" OCR could not read it ({'; '.join(sorted(ocr_errors))})." if ocr_errors else " OCR found no readable text."
         return PdfDocumentResult(
             document_id=document_id, filename=filename, state=AgentState.NEEDS_OCR, page_count=page_count,
             pages=reports, error=ErrorInfo(code="NEEDS_OCR", stage="pdf_agent",
-                                           message="The PDF has no selectable text (it looks scanned).",
-                                           remediation="OCR is not supported yet. Upload a text-based PDF."),
+                                           message="The PDF has no selectable text (it looks scanned)." + detail,
+                                           remediation="Install rapidocr or configure GEMINI_API_KEY for OCR, "
+                                                       "or upload a text-based PDF."),
         ), []
 
     all_refs = sorted({normalize_case_ref(m) for t in page_texts.values() for m in CASE_REF.findall(t)})
@@ -349,7 +371,9 @@ def extract_document(document_id: str, filename: str, path: Path, mode: str = "t
             continue
         page_chunks = _chunk_page(document_id, report.page, text, settings.chunk_words, settings.chunk_overlap_words,
                                   carried, single_case)
-        page_facts, carried = _facts_for_page(document_id, filename, report.page, text, page_chunks, carried, single_case)
+        method = f"ocr:{report.ocr_engine}+rule:pattern" if report.ocr_engine else "rule:pattern"
+        page_facts, carried = _facts_for_page(document_id, filename, report.page, text, page_chunks, carried, single_case,
+                                              method)
         report.chunk_ids = [c.chunk_id for c in page_chunks]
         report.fact_count = len(page_facts)
         chunks.extend(page_chunks)
@@ -360,7 +384,15 @@ def extract_document(document_id: str, filename: str, path: Path, mode: str = "t
     warnings = []
     unusable = [r.page for r in reports if not r.usable]
     if unusable:
-        warnings.append(f"Pages without selectable text were skipped: {', '.join(map(str, unusable))}.")
+        warnings.append(f"Pages without readable text were skipped: {', '.join(map(str, unusable))}.")
+    ocr_read = [r.page for r in reports if r.ocr_engine]
+    if ocr_read:
+        engines = ", ".join(sorted({r.ocr_engine for r in reports if r.ocr_engine}))
+        warnings.append(f"Pages read by OCR ({engines}): {', '.join(map(str, ocr_read))}. "
+                        "Check OCR-derived values against the scan.")
+    if ocr_skipped:
+        warnings.append(f"OCR page limit ({settings.ocr_max_pages}) reached; pages not OCR'd: "
+                        f"{', '.join(map(str, ocr_skipped))}.")
     unattached = sum(1 for f in unique.values() if f.case_id is None and f.field != "case_id")
     if unattached:
         warnings.append(f"{unattached} extracted fact(s) could not be tied to a single case and were left unattached.")

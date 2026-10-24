@@ -22,6 +22,7 @@ KNOWN = {
     "vector",  # vector store outage
     "lexical",  # lexical index outage
     "llm",  # answer generator outage
+    "ocr",  # every OCR engine down
     "fusion",  # fusion crash
 }
 

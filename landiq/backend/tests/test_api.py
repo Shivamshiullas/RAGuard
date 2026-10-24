@@ -122,3 +122,19 @@ def test_action_workflow_is_recorded_only(client, project):
 def test_health_reports_prediction_not_ready(client):
     body = client.get("/api/v1/health").json()
     assert body["prediction"]["status"] == "NOT_READY"
+
+
+def test_fault_injection_api(client):
+    assert client.get("/api/v1/faults").json()["active"] == []
+    r = client.put("/api/v1/faults", json={"faults": ["vector", "pdf_flaky"]})
+    assert r.status_code == 200 and r.json()["active"] == ["pdf_flaky", "vector"]
+    assert client.get("/api/v1/health").json()["faults"] == ["pdf_flaky", "vector"]
+    assert client.put("/api/v1/faults", json={"faults": ["bogus"]}).status_code == 400
+    assert client.put("/api/v1/faults", json={"faults": []}).json()["active"] == []
+
+
+def test_fault_injection_can_be_disabled(client, monkeypatch):
+    from landiq.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "allow_fault_injection", False)
+    assert client.put("/api/v1/faults", json={"faults": ["vector"]}).status_code == 403

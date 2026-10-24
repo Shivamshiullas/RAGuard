@@ -26,7 +26,7 @@ from starlette.concurrency import run_in_threadpool
 from . import demo, faults, orchestrator, rag
 from .config import LANDIQ_DIR, configure_logging, get_settings
 from .map_agent import IMAGE_EXT, PDF_EXT, SUPPORTED_EXT, VECTOR_EXT
-from .prediction import readiness
+from .prediction import predict, readiness, risk_band
 from .retrieval import get_vectors
 from .runtime import get_repo
 from .schemas import (
@@ -52,6 +52,9 @@ async def lifespan(_: FastAPI):
     seeded = demo.seed_demo()
     if seeded:
         log.info("Seeded synthetic demo corridor with %d cases", seeded)
+    rescored = get_repo().rescore_cases(predict)
+    if rescored:
+        log.info("Re-scored %d stored case(s) with the current risk scorer", rescored)
     runner = orchestrator.JobRunner(settings.job_workers)
     resumed = runner.resume_pending()
     if resumed:
@@ -92,6 +95,29 @@ def health() -> dict:
             "prediction": {"status": status.value, "reason": reason}, "faults": sorted(faults._active)}
 
 
+class FaultsIn(BaseModel):
+    faults: list[str]
+
+
+@app.get("/api/v1/faults")
+def get_faults() -> dict:
+    return {"active": sorted(faults._active), "known": sorted(faults.KNOWN),
+            "allowed": get_settings().allow_fault_injection}
+
+
+@app.put("/api/v1/faults", responses=ERRORS)
+def set_faults(body: FaultsIn) -> dict:
+    """Simulate failures for the next jobs (demo/testing). Applies process-wide until changed."""
+    if not get_settings().allow_fault_injection:
+        raise HTTPException(403, "Fault injection is disabled (ALLOW_FAULT_INJECTION=false).")
+    unknown = sorted(set(body.faults) - faults.KNOWN)
+    if unknown:
+        raise HTTPException(400, f"Unknown fault(s): {', '.join(unknown)}.")
+    faults.configure(",".join(body.faults))
+    log.warning("Fault injection set to: %s", ",".join(sorted(faults._active)) or "none")
+    return get_faults()
+
+
 @app.get("/api/v1/projects", response_model=list[Project])
 def list_projects() -> list[Project]:
     return get_repo().list_projects()
@@ -117,9 +143,11 @@ def project_summary(project_id: str) -> dict:
     if project.is_demo:
         return {"project_id": project_id, "is_demo": True, **demo.summary(cases)}
     quality = {"GOOD": 0, "PARTIAL": 0, "POOR": 0}
+    counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "UNRATED": 0}
     for c in cases:
         quality[c.data_quality] += 1
-    return {"project_id": project_id, "is_demo": False, "total": len(cases), "data_quality": quality,
+        counts[risk_band(c.prediction.delay_probability)] += 1
+    return {"project_id": project_id, "is_demo": False, "total": len(cases), "counts": counts, "data_quality": quality,
             "conflicts": len(get_repo().list_conflicts(project_id)),
             "unresolved_matches": len(get_repo().list_matches(project_id)),
             "prediction": readiness()[0].value}
@@ -145,7 +173,8 @@ async def _store_upload(project_id: str, kind: Literal["document", "map"], file:
         raise HTTPException(400, "The file is empty.")
     if kind == "document":
         if ext != ".pdf" or not data.startswith(b"%PDF"):
-            raise HTTPException(415, "Only selectable-text PDF documents are supported.")
+            raise HTTPException(415, "This is not a PDF file (its content does not start with a PDF header). "
+                                     "Only PDF documents are accepted.")
     else:
         if ext not in SUPPORTED_EXT:
             raise HTTPException(415, "Supported map formats: GeoJSON, zipped Shapefile, GeoPackage, KML, PNG/JPG, PDF.")
@@ -257,7 +286,8 @@ class CaseDetail(BaseModel):
 def list_cases(project_id: str) -> list[Case]:
     _project(project_id)
     cases = get_repo().list_cases(project_id)
-    return sorted(cases, key=lambda c: (-(c.illustrative or {}).get("delayProbability", 0), c.case_ref))
+    return sorted(cases, key=lambda c: (-(c.illustrative or {}).get("delayProbability", 0),
+                                        -(c.prediction.delay_probability or 0), c.case_ref))
 
 
 @app.get("/api/v1/cases/{case_id}", response_model=CaseDetail, responses=ERRORS)

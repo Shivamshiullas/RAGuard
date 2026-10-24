@@ -240,3 +240,24 @@ def test_pages_with_text_but_no_facts_are_reextracted():
     pid = _setup(make_pdf(["General notes about the corridor survey programme and its timeline.", DOSSIER]))
     job = run(pid)
     assert any(a.action == "REEXTRACT_PAGES" for a in job.audit)
+
+
+def test_errors_name_the_file_and_the_failsafe():
+    pid = new_project()
+    add_input(pid, "document", "good.pdf", make_pdf([DOSSIER]))
+    good = make_pdf(["Case ID: #0472"])
+    add_input(pid, "document", "broken.pdf", good[:120] + b"\x00garbage\xff" * 40)
+    add_input(pid, "map", "empty.geojson", geojson([]))
+    job = run(pid)
+    assert job.state == JobState.PARTIAL
+    pdf_err = job.pdf_agent.errors[0]
+    assert pdf_err.code == "PDF_CORRUPT" and pdf_err.filename == "broken.pdf" and "quarantined" in pdf_err.failsafe
+    map_err = job.map_agent.errors[0]
+    assert map_err.code == "MAP_EMPTY" and map_err.filename == "empty.geojson" and map_err.failsafe.startswith("Nothing to analyse")
+
+
+def test_retry_warning_names_the_file():
+    pid = _setup(make_pdf([DOSSIER]))
+    with faults.injected("pdf_flaky"):
+        job = run(pid)
+    assert any(w.startswith("dossier.pdf: attempt 1 failed") for w in job.pdf_agent.warnings)

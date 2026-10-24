@@ -69,10 +69,20 @@ class Settings(BaseSettings):
     # Prediction: path to a trained, evaluated model bundle. Empty = NOT_READY.
     model_path: str = ""
     model_max_age_days: int = 180
+    # Without a model bundle: "rules" = transparent rule-based scorecard, "off" = NOT_READY.
+    risk_scorer: str = "rules"
+
+    # OCR for pages without selectable text, tried in order: rapidocr (local), llm (vision).
+    ocr_engines: str = "rapidocr,llm"
+    ocr_dpi: int = 200
+    ocr_max_pages: int = 20  # ~3 s/page locally; keep within AGENT_TIMEOUT_S
+    ocr_min_confidence: float = 0.8  # lower-confidence lines are usually garbled; drop them
 
     # Comma-separated fault injection: pdf_agent,map_agent,vector,lexical,llm,fusion,
     # pdf_transient,map_transient,pdf_invalid_output,map_invalid_output,pdf_timeout
     faults: str = ""
+    # Allow switching faults at runtime from the UI (PUT /api/v1/faults). Local demo setting.
+    allow_fault_injection: bool = True
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     log_level: str = "INFO"

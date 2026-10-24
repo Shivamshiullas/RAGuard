@@ -15,6 +15,10 @@ const FEATURE_LABELS: Record<string, string> = {
   compensation_disbursed_pct: 'Compensation disbursed',
   rr_progress_pct: 'R&R progress',
   project_progress_pct: 'Project progress',
+  legal_status: 'Legal status',
+  compensation_status: 'Compensation status',
+  clearance_status: 'Approval / clearance status',
+  rr_status: 'R&R status',
 };
 
 const ContributionCard: React.FC<{ label: string; value: number; description?: string; unit: string }> = ({ label, value, description, unit }) => {
@@ -39,6 +43,7 @@ export const RiskExplanationView: React.FC<RiskExplanationViewProps> = ({ caseDa
   const pred = caseData.prediction;
   const placeholders: ShapContribution[] = caseData.isSynthetic ? caseData.shapContributions : [];
   const modelContribs = pred.status === 'READY' && pred.explanation ? Object.entries(pred.explanation.contributions) : [];
+  const rulesBased = pred.modelVersion?.startsWith('rules') ?? false;
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
@@ -57,7 +62,9 @@ export const RiskExplanationView: React.FC<RiskExplanationViewProps> = ({ caseDa
           </h1>
           <p className="text-xs md:text-sm text-slate-500 mt-0.5">
             {pred.status === 'READY'
-              ? `Additive contributions from model ${pred.modelVersion} for this case's validated features.`
+              ? rulesBased
+                ? `Additive contributions from the ${pred.modelVersion} rule-based scorecard (fixed weights, not a trained model).`
+                : `Additive contributions from model ${pred.modelVersion} for this case's validated features.`
               : 'Explanations are shown only when they come from a trained, evaluated model and this case\'s actual inputs.'}
           </p>
         </div>
@@ -87,7 +94,7 @@ export const RiskExplanationView: React.FC<RiskExplanationViewProps> = ({ caseDa
       {modelContribs.length > 0 && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs font-mono">
-            <h3 className="font-display font-bold text-lg text-slate-900">Model attribution (log-odds)</h3>
+            <h3 className="font-display font-bold text-lg text-slate-900">{rulesBased ? 'Scorecard attribution (log-odds)' : 'Model attribution (log-odds)'}</h3>
             <span>Baseline: {pred.explanation!.baseline_logit.toFixed(2)} → p = {((pred.delayProbability ?? 0) * 100).toFixed(1)}%</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -124,7 +131,9 @@ export const RiskExplanationView: React.FC<RiskExplanationViewProps> = ({ caseDa
           <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700">
             <span className="text-[10px] uppercase font-bold text-cyan-400">Prediction model</span>
             <div className="font-bold text-white text-sm">{pred.modelVersion ?? 'None configured'}</div>
-            <div className="text-[11px] text-slate-400">No labelled historical dataset is available yet.</div>
+            <div className="text-[11px] text-slate-400">
+              {rulesBased ? 'Rule-based scorecard: expert-set weights, not trained on outcomes.' : 'No labelled historical dataset is available yet.'}
+            </div>
           </div>
           <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700">
             <span className="text-[10px] uppercase font-bold text-slate-400">Reported accuracy</span>
@@ -134,7 +143,9 @@ export const RiskExplanationView: React.FC<RiskExplanationViewProps> = ({ caseDa
           <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700">
             <span className="text-[10px] uppercase font-bold text-amber-400">Explanation method</span>
             <div className="font-bold text-white text-sm">Additive (linear) contributions</div>
-            <div className="text-[11px] text-slate-300">Exact for the supported linear model bundle.</div>
+            <div className="text-[11px] text-slate-300">
+              {rulesBased ? 'Exact: the score is the sum of these weights.' : 'Exact for the supported linear model bundle.'}
+            </div>
           </div>
         </div>
       </div>

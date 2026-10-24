@@ -52,6 +52,9 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("RETRY_BASE_DELAY_S", "0.01")
     monkeypatch.setenv("RETRY_MAX_DELAY_S", "0.05")
     monkeypatch.setenv("MODEL_PATH", "")
+    # Strict defaults for the existing gate tests; the scorecard and OCR have their own tests.
+    monkeypatch.setenv("RISK_SCORER", "off")
+    monkeypatch.setenv("OCR_ENGINES", "")
     config.get_settings.cache_clear()
     runtime.reset()
     faults.configure("")

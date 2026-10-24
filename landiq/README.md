@@ -5,7 +5,7 @@ LANDIQ analyses land-acquisition and infrastructure-corridor bottlenecks from tw
 - **Selectable-text PDFs** (case dossiers, awards, tribunal orders, notices)
 - **GIS data** (GeoJSON, zipped Shapefile, GeoPackage, KML; map images/PDFs as visual references only)
 
-A persisted, bounded orchestrator runs a PDF agent and a map agent independently, indexes the text for retrieval-augmented answers, fuses evidence into cases by verified identifiers, and gates predictions. Every value shown for a real case links to a document page or map feature. Missing values stay **UNKNOWN**, conflicting sources stay **CONFLICT**, and without a trained model predictions are **NOT_READY**.
+A persisted, bounded orchestrator runs a PDF agent and a map agent independently, indexes the text for retrieval-augmented answers, fuses evidence into cases by verified identifiers, and gates predictions. Every value shown for a real case links to a document page or map feature. Missing values stay **UNKNOWN**, conflicting sources stay **CONFLICT**, and without a trained model, cases are scored by a transparent, clearly labelled rule-based scorecard (or stay **NOT_READY** if too little is known).
 
 The React frontend reproduces the SIH 2026 LANDIQ screens (Overview, High-Risk Cases, Case Deep Dive, Risk Analysis, Recommended Actions, GIS Parcel Map, Executive Briefing) and adds **Data & Analysis Jobs**.
 
@@ -20,7 +20,8 @@ landiq/
 │   │   ├── retrieval.py     SQLite FTS5 (exact/lexical) + ChromaDB vectors, RRF fusion, fallback rules
 │   │   ├── rag.py           cited answers, citation validation, abstention
 │   │   ├── fusion.py        cases from verified joins; conflicts; ambiguous matches
-│   │   ├── prediction.py    NOT_READY / DEMO_ONLY / READY gate
+│   │   ├── prediction.py    NOT_READY / DEMO_ONLY / READY gate, rule-based scorecard
+│   │   ├── ocr.py           OCR chain for scanned pages (RapidOCR → vision LLM)
 │   │   ├── actions.py       evidence-backed recommendations for human review
 │   │   ├── demo.py          synthetic demo corridor (one consistent dataset)
 │   │   ├── storage.py       SQLite repository (swap for PostgreSQL/PostGIS later)
@@ -98,12 +99,12 @@ No model output selects actions or calls tools. Budgets: steps, wall time, attem
 | Invalid file (corrupt PDF, missing `.prj`, bad CRS) | No retry; structured error with remediation; file quarantined |
 | Invalid geometry | Feature quarantined; map PARTIAL (FAILED if none valid) |
 | Agent returns schema-invalid output | Rejected; never stored or fused |
-| Scanned PDF | `NEEDS_OCR` (OCR not in scope) |
+| Scanned PDF / page | OCR: local RapidOCR, then vision LLM; OCR facts marked `ocr:<engine>`. `NEEDS_OCR` only if every engine fails |
 | Vector store down | Lexical-only retrieval if enabled (DEGRADED); otherwise `UNAVAILABLE` |
 | LLM down / uncited answer | Retrieved evidence only (`EVIDENCE_ONLY`), no unsupported answer |
 | Conflicting sources | Field CONFLICT, both values with sources, "Reconcile" action |
 | Parcel matches several cases | Not merged; job NEEDS_CLARIFICATION until the user answers |
-| No trained model | Prediction NOT_READY, all numbers null |
+| No trained model | Rule-based scorecard `rules-v1` (labelled, no accuracy claimed); NOT_READY if < 2 statuses known |
 | Server restart | RUNNING jobs resume; checkpointed inputs are not re-processed |
 | Instructions inside documents | Treated as quoted data; never change behaviour |
 
@@ -112,6 +113,7 @@ No model output selects actions or calls tools. Budgets: steps, wall time, attem
 | Method | Route | |
 |---|---|---|
 | GET | `/health` | retrieval health, prediction readiness, active faults |
+| GET/PUT | `/faults` | list / set simulated faults (`{faults: [...]}`); disable with `ALLOW_FAULT_INJECTION=false` |
 | GET/POST | `/projects` | list / create (`{name, corridor_id}`) |
 | GET | `/projects/{id}/summary` | counts derived from cases |
 | POST | `/projects/{id}/documents` | PDF upload (400/404/413/415) |
@@ -140,11 +142,13 @@ npm run build               # type-check + production build
 npm run lint
 ```
 
-Coverage includes PDF facts and page provenance, `NEEDS_OCR`, corrupt/encrypted PDFs, all GIS formats, CRS rejection, invalid-geometry quarantine, unreferenced images, independent agent failures, bounded retries and timeouts, invalid output rejection, fusion failure, step budget, restart recovery from checkpoints, conflicts, ambiguous matches and clarification, retrieval fallback rules, citation validation, prediction gate (NOT_READY / READY / stale / missing features), API status codes, idempotency, and demo data consistency.
+Coverage includes PDF facts and page provenance, `NEEDS_OCR`, corrupt/encrypted PDFs, all GIS formats, CRS rejection, invalid-geometry quarantine, unreferenced images, independent agent failures, bounded retries and timeouts, invalid output rejection, fusion failure, step budget, restart recovery from checkpoints, conflicts, ambiguous matches and clarification, retrieval fallback rules, citation validation, prediction gate (NOT_READY / READY / stale / missing features), rule-based scorecard, OCR engines and fallback, API status codes, idempotency, and demo data consistency.
 
 ## Prediction
 
 No labelled historical dataset exists, so no model ships. `MODEL_PATH` can point to a JSON logistic-model bundle (`model_version`, `trained_at`, `evaluated: true`, `evaluation`, `required_features`, `coefficients`, `feature_means`, `intercept`). The prediction is READY only if the bundle is evaluated, fresh, and every required feature is KNOWN for the case; explanations are the model's exact additive contributions. No pickles are loaded.
+
+Without `MODEL_PATH`, `RISK_SCORER=rules` (default) applies the **rule-based scorecard** `rules-v1`: fixed, expert-set log-odds weights on legal, compensation, approval and R&R status (unverified values count half, a conflicting field adds +0.8), intercept −1.5. Its additive contributions drive the Risk Explanation page. It is not trained on outcomes and reports no accuracy; cases with fewer than two known statuses stay NOT_READY. `RISK_SCORER=off` restores NOT_READY everywhere. A configured but invalid/stale `MODEL_PATH` never falls back to the scorecard.
 
 ## Demo data
 
@@ -152,7 +156,8 @@ The **Delhi-Mumbai Express Corridor (Package 4)** project is synthetic: 840 case
 
 ## Limitations
 
-- OCR is not implemented (scanned PDFs → NEEDS_OCR).
+- OCR uses RapidOCR's English models locally (~3 s/page, at most `OCR_MAX_PAGES` per document); lines below `OCR_MIN_CONFIDENCE` are dropped. Handwriting and poor scans may yield few facts.
+- The rule-based scorecard is a heuristic, not a trained or evaluated model.
 - Fact extraction is rule-based (labelled lines are VALIDATED; free-text inferences are UNVERIFIED). Unusual document layouts may yield few facts.
 - Georeferenced rasters/GeoPDFs are not parsed; only vector GIS gives precise geometry.
 - No authentication or multi-tenant separation.

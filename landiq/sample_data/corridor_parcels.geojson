@@ -1,0 +1,246 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Rewari Bypass alignment",
+    "role": "alignment"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      76.6,
+      28.18
+     ],
+     [
+      76.63,
+      28.19
+     ],
+     [
+      76.66,
+      28.2
+     ],
+     [
+      76.69,
+      28.21
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "parcel_id": "P-0472-A",
+    "case_id": "#0472",
+    "survey_no": "142/3A",
+    "zone": "Zone A",
+    "village": "Kishangarh Khurd"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       76.61,
+       28.181
+      ],
+      [
+       76.614,
+       28.181
+      ],
+      [
+       76.614,
+       28.185000000000002
+      ],
+      [
+       76.61,
+       28.185000000000002
+      ],
+      [
+       76.61,
+       28.181
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "parcel_id": "P-0511-A",
+    "survey_no": "88/1",
+    "zone": "Zone A"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       76.625,
+       28.187
+      ],
+      [
+       76.629,
+       28.187
+      ],
+      [
+       76.629,
+       28.191000000000003
+      ],
+      [
+       76.625,
+       28.191000000000003
+      ],
+      [
+       76.625,
+       28.187
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "parcel_id": "P-0618-A",
+    "case_id": "#0618",
+    "survey_no": "210/2",
+    "zone": "Zone B"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       76.64,
+       28.192
+      ],
+      [
+       76.644,
+       28.192
+      ],
+      [
+       76.644,
+       28.196
+      ],
+      [
+       76.64,
+       28.196
+      ],
+      [
+       76.64,
+       28.192
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "parcel_id": "P-0655-A",
+    "case_id": "#0655",
+    "survey_no": "45/7",
+    "zone": "Zone B"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       76.65,
+       28.23
+      ],
+      [
+       76.65400000000001,
+       28.23
+      ],
+      [
+       76.65400000000001,
+       28.234
+      ],
+      [
+       76.65,
+       28.234
+      ],
+      [
+       76.65,
+       28.23
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "parcel_id": "P-KHOL-301",
+    "survey_no": "301/2",
+    "zone": "Zone C"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       76.67,
+       28.201
+      ],
+      [
+       76.674,
+       28.201
+      ],
+      [
+       76.674,
+       28.205000000000002
+      ],
+      [
+       76.67,
+       28.205000000000002
+      ],
+      [
+       76.67,
+       28.201
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "parcel_id": "P-BAD-01",
+    "survey_no": "999/9"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       76.68,
+       28.21
+      ],
+      [
+       76.684,
+       28.214
+      ],
+      [
+       76.684,
+       28.21
+      ],
+      [
+       76.68,
+       28.214
+      ],
+      [
+       76.68,
+       28.21
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

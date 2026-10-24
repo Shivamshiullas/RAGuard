@@ -45,6 +45,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
   };
   const withConflicts = cases.filter((c) => Object.values(c.fieldStatus).includes('CONFLICT')).length;
   const rated = project.isDemo || counts.UNRATED < total;
+  const bandSource = project.isDemo ? 'Illustrative' : 'Rule-based';
+  const bandLabel = project.isDemo ? 'synthetic risk band' : 'scorecard risk band';
 
   const donutData = rated
     ? [
@@ -78,7 +80,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
             <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full">
               Predictive Intelligence Overview
             </span>
-            {project.isDemo ? <IllustrativeBadge text="Illustrative Project Data" /> : <PredictionChip status="NOT_READY" />}
+            {project.isDemo ? <IllustrativeBadge text="Illustrative Project Data" /> : <PredictionChip status={rated ? 'READY' : 'NOT_READY'} />}
           </div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">{project.name}</h1>
           <p className="text-xs md:text-sm text-slate-500 mt-0.5">
@@ -116,8 +118,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
         />
         {rated ? (
           <>
-            <KpiCard title="LOW RISK" value={counts.LOW} subtitle={`${pct(counts.LOW, total)} of cases`} icon={CheckCircle2} variant="emerald" trend={{ value: 'Illustrative', isPositive: true, label: 'synthetic risk band' }} />
-            <KpiCard title="MEDIUM RISK" value={counts.MEDIUM} subtitle={`${pct(counts.MEDIUM, total)} of cases`} icon={Clock} variant="amber" trend={{ value: 'Illustrative', isPositive: false, label: 'synthetic risk band' }} />
+            <KpiCard title="LOW RISK" value={counts.LOW} subtitle={`${pct(counts.LOW, total)} of cases`} icon={CheckCircle2} variant="emerald" trend={{ value: bandSource, isPositive: true, label: bandLabel }} />
+            <KpiCard title="MEDIUM RISK" value={counts.MEDIUM} subtitle={`${pct(counts.MEDIUM, total)} of cases`} icon={Clock} variant="amber" trend={{ value: bandSource, isPositive: false, label: bandLabel }} />
             <KpiCard
               title="HIGH RISK"
               value={counts.HIGH}
@@ -146,7 +148,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
                 <h3 className="font-display font-bold text-base text-slate-900">{rated ? 'DELAY RISK OVERVIEW' : 'EVIDENCE QUALITY'}</h3>
                 <p className="text-xs text-slate-500">Distribution across {total} cases</p>
               </div>
-              {rated ? <IllustrativeBadge /> : <span className="text-[10px] font-bold text-slate-500 uppercase px-2 py-0.5 rounded bg-slate-100">From fusion</span>}
+              {rated ? <IllustrativeBadge text={project.isDemo ? 'Illustrative Data' : 'Rule-based scorecard'} /> : <span className="text-[10px] font-bold text-slate-500 uppercase px-2 py-0.5 rounded bg-slate-100">From fusion</span>}
             </div>
 
             <div className="h-56 relative flex items-center justify-center mt-2">
@@ -231,9 +233,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span className="flex items-center gap-1 text-[11px]">
               <span className="h-2 w-2 rounded-full bg-blue-600" />
-              No trained prediction model yet: no accuracy or forecast figures are reported.
+              {project.isDemo || !rated
+                ? 'No trained prediction model yet: no accuracy or forecast figures are reported.'
+                : 'Risk from the rule-based scorecard (not a trained model): no accuracy is claimed.'}
             </span>
-            <PredictionChip status={project.isDemo ? 'DEMO_ONLY' : 'NOT_READY'} />
+            <PredictionChip status={project.isDemo ? 'DEMO_ONLY' : rated ? 'READY' : 'NOT_READY'} />
           </div>
         </div>
       </div>
@@ -246,7 +250,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
               <span className="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Attention Required</span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              {rated ? 'Highest illustrative delay probabilities' : 'Cases with the most evidence-backed recommended actions'}
+              {rated ? (project.isDemo ? 'Highest illustrative delay probabilities' : 'Highest rule-based delay risk') : 'Cases with the most evidence-backed recommended actions'}
             </p>
           </div>
           <button onClick={() => onNavigate('high-risk-cases')} className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 group">

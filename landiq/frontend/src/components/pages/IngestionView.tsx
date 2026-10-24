@@ -14,8 +14,9 @@ import {
   ListTree,
 } from 'lucide-react';
 import { ProjectInfo } from '../../types';
-import { api, ApiAgentStatus, ApiInput, ApiJob, ApiStage } from '../../api/client';
+import { api, ApiAgentStatus, ApiError, ApiInput, ApiJob, ApiStage } from '../../api/client';
 import { PredictionChip } from '../common/StatusChips';
+import { FailsafeReport, UploadResult, UploadResults } from './FailsafePanels';
 
 interface IngestionViewProps {
   project: ProjectInfo;
@@ -33,6 +34,7 @@ const STATE_STYLE: Record<string, string> = {
   NEEDS_CLARIFICATION: 'bg-indigo-100 text-indigo-800',
   NEEDS_OCR: 'bg-amber-100 text-amber-800',
   FAILED: 'bg-rose-100 text-rose-800',
+  QUARANTINED: 'bg-rose-100 text-rose-800',
   RETRYING: 'bg-amber-100 text-amber-800',
   RUNNING: 'bg-blue-100 text-blue-800',
   QUEUED: 'bg-slate-100 text-slate-700',
@@ -58,7 +60,7 @@ const AgentCard: React.FC<{ title: string; icon: React.ElementType; status: ApiA
     </div>
     {status.errors.map((e, i) => (
       <div key={i} className="p-2 rounded-lg bg-rose-50 border border-rose-100 text-[11px]">
-        <div className="font-bold text-rose-800">{e.code}{e.transient ? ' (transient)' : ''}</div>
+        <div className="font-bold text-rose-800">{e.code}{e.transient ? ' (transient)' : ''}{e.filename ? ` · ${e.filename}` : ''}</div>
         <div className="text-slate-700">{e.message}</div>
         {e.remediation && <div className="text-slate-500 italic">Fix: {e.remediation}</div>}
       </div>
@@ -88,6 +90,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
   const [job, setJob] = useState<ApiJob | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [uploads, setUploads] = useState<UploadResult[]>([]);
   const docRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<HTMLInputElement>(null);
   const wasActive = useRef(false);
@@ -151,16 +154,21 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
     if (!files?.length) return;
     setBusy(kind);
     setMessage(null);
-    const notes: string[] = [];
+    const results: UploadResult[] = [];
     for (const file of Array.from(files)) {
       try {
         const res = await api.upload(project.id, kind, file);
-        notes.push(`${file.name}: ${res.status}${res.detail ? ` — ${res.detail}` : ''}`);
+        results.push({ file: file.name, ok: true, message: `${res.status}${res.detail ? ` — ${res.detail}` : ''}` });
       } catch (err) {
-        notes.push(`${file.name}: rejected — ${err instanceof Error ? err.message : 'upload failed'}`);
+        results.push({
+          file: file.name,
+          ok: false,
+          httpStatus: err instanceof ApiError && err.status ? err.status : undefined,
+          message: err instanceof Error ? err.message : 'Upload failed.',
+        });
       }
     }
-    setMessage({ kind: notes.some((n) => n.includes('rejected')) ? 'error' : 'ok', text: notes.join(' • ') });
+    setUploads(results);
     if (docRef.current) docRef.current.value = '';
     if (mapRef.current) mapRef.current.value = '';
     setBusy(null);
@@ -214,7 +222,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
         </span>
         <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">Data & Analysis Jobs</h1>
         <p className="text-xs md:text-sm text-slate-500 mt-0.5">
-          Upload selectable-text PDFs and GIS layers. Each job runs the PDF and map agents independently, saves checkpoints, retries only
+          Upload PDFs (scanned pages are read by OCR) and GIS layers. Each job runs the PDF and map agents independently, saves checkpoints, retries only
           transient failures, fuses evidence by verified IDs and reports partial results honestly.
         </p>
       </div>
@@ -239,7 +247,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
               <h3 className="font-display font-bold text-base text-slate-900">1. Upload inputs</h3>
               <label className="block p-4 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 cursor-pointer text-xs text-slate-600">
                 <span className="font-bold text-slate-800 flex items-center gap-1.5"><FileText className="h-4 w-4 text-blue-600" /> PDF documents</span>
-                Selectable-text PDFs (case files, awards, notices), up to 50 MB.
+                Case files, awards, notices (text or scanned), up to 50 MB.
                 <input ref={docRef} type="file" accept=".pdf,application/pdf" multiple className="sr-only" onChange={(e) => upload('documents', e.target.files)} />
               </label>
               <label className="block p-4 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 cursor-pointer text-xs text-slate-600">
@@ -248,6 +256,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
                 <input ref={mapRef} type="file" accept=".geojson,.json,.zip,.gpkg,.kml,.png,.jpg,.jpeg,.pdf" multiple className="sr-only" onChange={(e) => upload('maps', e.target.files)} />
               </label>
               {(busy === 'documents' || busy === 'maps') && <p className="text-xs text-slate-500 flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</p>}
+              <UploadResults results={uploads} />
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
@@ -268,7 +277,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
                       <span className="text-[10px] text-slate-400">{(i.size_bytes / 1024).toFixed(0)} KB</span>
                     </span>
                     <span className="text-right">
-                      <StateChip state={i.status === 'STORED' ? 'SUCCEEDED' : 'FAILED'} />
+                      <StateChip state={i.status === 'QUARANTINED' ? 'QUARANTINED' : 'SUCCEEDED'} />
                       <span className="block text-[10px] text-slate-500">{i.status}{i.detail ? ` · ${i.detail}` : ''}</span>
                     </span>
                   </div>
@@ -305,6 +314,8 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
                   <RotateCcw className="h-4 w-4 shrink-0" /> {job.remediation}
                 </div>
               )}
+
+              {!ACTIVE.has(job.state) && <FailsafeReport job={job} />}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <AgentCard title="PDF Intelligence Agent" icon={FileText} status={job.pdf_agent} />
@@ -367,8 +378,6 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
               </div>
             </div>
           )}
-
-          {createForm}
         </>
       )}
     </div>

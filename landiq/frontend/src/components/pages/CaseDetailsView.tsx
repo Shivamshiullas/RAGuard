@@ -96,6 +96,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
   const [answer, setAnswer] = useState<ApiRagAnswer | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
   const prob = caseData.delayProbability;
+  const rulesBased = caseData.prediction.modelVersion?.startsWith('rules') ?? false;
 
   useEffect(() => {
     setAnswer(null);
@@ -181,7 +182,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
               {caseData.isSynthetic && <span className="text-[11px] text-amber-300 italic">Illustrative figure — not model output</span>}
             </div>
             <h2 className="font-display text-lg font-bold tracking-tight text-slate-200 uppercase">
-              {prob === null ? 'Delay prediction not available' : 'Illustrative delay probability'}
+              {prob === null ? 'Delay prediction not available' : caseData.isSynthetic ? 'Illustrative delay probability' : rulesBased ? 'Rule-based delay risk' : 'Predicted delay probability'}
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">{caseData.prediction.reason}</p>
             {caseData.prediction.missingFeatures.length > 0 && (
@@ -216,7 +217,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
             <div className="space-y-1.5 text-xs text-slate-300">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Hazard Level</div>
               <div className="font-semibold text-rose-300">
-                {caseData.riskCategory === 'UNRATED' ? 'Not assessed' : `${caseData.riskCategory} (illustrative)`}
+                {caseData.riskCategory === 'UNRATED' ? 'Not assessed' : caseData.isSynthetic ? `${caseData.riskCategory} (illustrative)` : rulesBased ? `${caseData.riskCategory} (rule-based)` : caseData.riskCategory}
               </div>
               <div className="text-[10px] text-slate-400 font-mono">Model: {caseData.prediction.modelVersion ?? 'none configured'}</div>
             </div>

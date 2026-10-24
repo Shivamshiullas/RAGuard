@@ -44,7 +44,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ project, cases, health
       'Priority actions (for human review):',
       ...priority.map(({ c, a }) => `  - ${c.id}: ${a.title} — owner: ${a.targetAuthority}`),
       '',
-      'Limitations: no trained prediction model; no accuracy is claimed; recommendations are decision support, not legal determinations.',
+      'Limitations: no trained prediction model (uploaded cases use a rule-based scorecard); no accuracy is claimed; recommendations are decision support, not legal determinations.',
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -180,10 +180,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ project, cases, health
           <AlertTriangle className="h-4 w-4 text-amber-600" /> Methodology & Limitations
         </h3>
         <ul className="list-disc pl-5 text-xs text-slate-600 space-y-1.5">
-          <li>Facts are extracted from selectable-text PDFs with page-level provenance; scanned PDFs return NEEDS_OCR (OCR not yet supported).</li>
+          <li>Facts are extracted from PDFs with page-level provenance. Scanned pages are read by OCR (local RapidOCR, then a vision LLM if configured); OCR-derived facts are marked and should be checked against the scan. A document is NEEDS_OCR only if no engine can read it.</li>
           <li>GIS layers are validated (CRS, geometry) and reprojected to WGS84; unreferenced map images are never treated as precise parcels.</li>
           <li>Cases and parcels are joined only by exact identifiers; ambiguous matches require user confirmation; conflicting records are kept, not resolved.</li>
-          <li>No labelled historical dataset exists yet, so no delay probability, accuracy or SHAP value is computed for real cases (NOT_READY).</li>
+          <li>No labelled historical dataset exists yet, so no trained model, accuracy or SHAP value exists. Uploaded cases are scored by a transparent rule-based scorecard (fixed weights on legal, compensation, approval and R&R status; rules-v1); cases with fewer than two known statuses stay NOT_READY.</li>
           {project.isDemo && <li>All demo corridor figures, trends, geometries and SHAP-style values are synthetic and illustrative.</li>}
           <li>Recommended actions are decision support for human review, not legal determinations; LANDIQ sends nothing to any authority.</li>
         </ul>

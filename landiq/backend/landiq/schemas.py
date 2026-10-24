@@ -78,6 +78,9 @@ class ErrorInfo(Model):
     stage: str | None = None
     transient: bool = False
     remediation: str | None = None
+    input_id: str | None = None  # the uploaded file this error is about
+    filename: str | None = None
+    failsafe: str | None = None  # what LANDIQ did in response
     at: str = Field(default_factory=utcnow)
 
 
@@ -119,7 +122,8 @@ class Fact(Model):
     normalized_value: str | float | None = None
     case_id: str | None = None
     parcel_id: str | None = None
-    extraction_method: Literal["rule:pattern", "gis:attribute", "gis:spatial"]
+    extraction_method: Literal["rule:pattern", "ocr:rapidocr+rule:pattern", "ocr:llm+rule:pattern", "gis:attribute",
+                               "gis:spatial"]
     validation_status: ValidationStatus = ValidationStatus.VALIDATED
     provenance: DocumentProvenance | MapProvenance
     source_date: str | None = None
@@ -134,6 +138,7 @@ class PageReport(Model):
     page: int
     chars: int
     usable: bool
+    ocr_engine: str | None = None  # set when the page text came from OCR
     chunk_ids: list[str] = Field(default_factory=list)
     fact_count: int = 0
 

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="4_corridor_parcels" id="4_corridor_parcels">
+	<SimpleField name="parcel_id" type="string"></SimpleField>
+	<SimpleField name="case_id" type="string"></SimpleField>
+	<SimpleField name="survey_no" type="string"></SimpleField>
+	<SimpleField name="zone" type="string"></SimpleField>
+	<SimpleField name="village" type="string"></SimpleField>
+	<SimpleField name="role" type="string"></SimpleField>
+</Schema>
+<Folder><name>4_corridor_parcels</name>
+  <Placemark id="4_corridor_parcels.1">
+	<name>P-0472-A</name>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#4_corridor_parcels">
+		<SimpleData name="parcel_id">P-0472-A</SimpleData>
+		<SimpleData name="case_id">#0472</SimpleData>
+		<SimpleData name="survey_no">142/3A</SimpleData>
+		<SimpleData name="zone">Zone A</SimpleData>
+		<SimpleData name="village">Kishangarh Khurd</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>76.614,28.181 76.614,28.185 76.61,28.185 76.61,28.181 76.614,28.181</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark id="4_corridor_parcels.2">
+	<name>P-0511-A</name>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#4_corridor_parcels">
+		<SimpleData name="parcel_id">P-0511-A</SimpleData>
+		<SimpleData name="survey_no">88/1</SimpleData>
+		<SimpleData name="zone">Zone A</SimpleData>
+		<SimpleData name="village">Rampura Kalan</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>76.629,28.187 76.629,28.191 76.625,28.191 76.625,28.187 76.629,28.187</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark id="4_corridor_parcels.3">
+	<name>P-0618-A</name>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#4_corridor_parcels">
+		<SimpleData name="parcel_id">P-0618-A</SimpleData>
+		<SimpleData name="case_id">#0618</SimpleData>
+		<SimpleData name="survey_no">210/2</SimpleData>
+		<SimpleData name="zone">Zone B</SimpleData>
+		<SimpleData name="village">Dharuhera</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>76.644,28.192 76.644,28.196 76.64,28.196 76.64,28.192 76.644,28.192</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark id="4_corridor_parcels.4">
+	<name>P-0655-A</name>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#4_corridor_parcels">
+		<SimpleData name="parcel_id">P-0655-A</SimpleData>
+		<SimpleData name="case_id">#0655</SimpleData>
+		<SimpleData name="survey_no">45/7</SimpleData>
+		<SimpleData name="zone">Zone B</SimpleData>
+		<SimpleData name="village">Bawal</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>76.654,28.23 76.654,28.234 76.65,28.234 76.65,28.23 76.654,28.23</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark id="4_corridor_parcels.5">
+	<name>P-0705-A</name>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#4_corridor_parcels">
+		<SimpleData name="parcel_id">P-0705-A</SimpleData>
+		<SimpleData name="case_id">#0705</SimpleData>
+		<SimpleData name="survey_no">301/5</SimpleData>
+		<SimpleData name="zone">Zone C</SimpleData>
+		<SimpleData name="village">Khol</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>76.674,28.201 76.674,28.205 76.67,28.205 76.67,28.201 76.674,28.201</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark id="4_corridor_parcels.6">
+	<name>P-0706-A</name>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#4_corridor_parcels">
+		<SimpleData name="parcel_id">P-0706-A</SimpleData>
+		<SimpleData name="case_id">#0706</SimpleData>
+		<SimpleData name="survey_no">302/1</SimpleData>
+		<SimpleData name="zone">Zone C</SimpleData>
+		<SimpleData name="village">Khol</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>76.68,28.205 76.68,28.209 76.676,28.209 76.676,28.205 76.68,28.205</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark id="4_corridor_parcels.7">
+	<name>Rewari Bypass alignment</name>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#4_corridor_parcels">
+		<SimpleData name="role">alignment</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>76.6,28.18 76.63,28.19 76.66,28.2 76.69,28.21</coordinates></LineString>
+  </Placemark>
+</Folder>
+</Document></kml>

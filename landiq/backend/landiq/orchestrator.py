@@ -266,7 +266,7 @@ def _call_with_timeout(fn, timeout: float):
         pool.shutdown(wait=False)
 
 
-def _with_retries(ctx: Ctx, status: AgentStatus, input_id: str, fn):
+def _with_retries(ctx: Ctx, status: AgentStatus, label: str, fn):
     """Bounded retries with exponential backoff for transient errors only."""
     attempt = 0
     while True:
@@ -282,9 +282,17 @@ def _with_retries(ctx: Ctx, status: AgentStatus, input_id: str, fn):
             if attempt >= ctx.settings.agent_max_attempts:
                 raise TransientError(code) from exc
             status.state = AgentState.RETRYING
-            status.warnings.append(f"{input_id}: attempt {attempt} failed ({code}); retrying.")
+            status.warnings.append(f"{label}: attempt {attempt} failed ({code}); retrying.")
             ctx.save()
             time.sleep(_backoff(attempt))
+
+
+FAILSAFE_PERMANENT = "Not retried: retrying cannot fix an invalid file. The file was quarantined; other inputs and the other agent carried on."
+
+
+def _failsafe_transient(ctx: Ctx) -> str:
+    return (f"Retried {ctx.settings.agent_max_attempts} times with exponential backoff, then gave up on this file. "
+            "Results from other inputs were kept; re-running the job retries only this file.")
 
 
 def _quarantine(ctx: Ctx, input_id: str, reason: str) -> None:
@@ -317,23 +325,28 @@ def _pdf_one(ctx: Ctx, status: AgentStatus, document_id: str) -> PdfDocumentResu
         return result, chunks
 
     try:
-        result, chunks = _with_retries(ctx, status, document_id, attempt)
+        result, chunks = _with_retries(ctx, status, row.filename, attempt)
     except PermanentAgentError as exc:
-        status.errors.append(ErrorInfo(code=exc.code, message=str(exc), stage="pdf_agent", remediation=exc.remediation))
+        status.errors.append(ErrorInfo(code=exc.code, message=str(exc), stage="pdf_agent", remediation=exc.remediation,
+                                       input_id=document_id, filename=row.filename, failsafe=FAILSAFE_PERMANENT))
         _quarantine(ctx, document_id, exc.code)
         return PdfDocumentResult(document_id=document_id, filename=row.filename, state=AgentState.FAILED,
                                  error=status.errors[-1])
     except TransientError as exc:
         status.errors.append(ErrorInfo(code=str(exc), stage="pdf_agent", transient=True,
                                        message=f"{row.filename}: the PDF agent failed after {ctx.settings.agent_max_attempts} attempts.",
-                                       remediation="Retry the job later."))
+                                       remediation="Retry the job later.", input_id=document_id, filename=row.filename,
+                                       failsafe=_failsafe_transient(ctx)))
         return PdfDocumentResult(document_id=document_id, filename=row.filename, state=AgentState.FAILED,
                                  error=status.errors[-1])
 
     if result.state in (AgentState.SUCCEEDED, AgentState.PARTIAL):
         _index(ctx, result, chunks)
     elif result.error:
-        status.errors.append(result.error)
+        status.errors.append(result.error.model_copy(update={
+            "input_id": document_id, "filename": row.filename,
+            "failsafe": "OCR was attempted on every page; no readable text was recovered. The document was skipped "
+                        "(nothing guessed from it); other inputs carried on."}))
     ctx.repo.put_checkpoint(ctx.job.job_id, "pdf", document_id, result.model_dump_json())
     return result
 
@@ -366,20 +379,26 @@ def _map_one(ctx: Ctx, status: AgentStatus, map_id: str) -> MapResult | None:
         return result
 
     try:
-        result = _with_retries(ctx, status, map_id, attempt)
+        result = _with_retries(ctx, status, row.filename, attempt)
     except PermanentAgentError as exc:
-        status.errors.append(ErrorInfo(code=exc.code, message=str(exc), stage="map_agent", remediation=exc.remediation))
+        status.errors.append(ErrorInfo(code=exc.code, message=str(exc), stage="map_agent", remediation=exc.remediation,
+                                       input_id=map_id, filename=row.filename, failsafe=FAILSAFE_PERMANENT))
         _quarantine(ctx, map_id, exc.code)
         return MapResult(map_id=map_id, filename=row.filename, state=AgentState.FAILED, input_type="vector",
                          error=status.errors[-1])
     except TransientError as exc:
         status.errors.append(ErrorInfo(code=str(exc), stage="map_agent", transient=True,
                                        message=f"{row.filename}: the map agent failed after {ctx.settings.agent_max_attempts} attempts.",
-                                       remediation="Retry the job later."))
+                                       remediation="Retry the job later.", input_id=map_id, filename=row.filename,
+                                       failsafe=_failsafe_transient(ctx)))
         return MapResult(map_id=map_id, filename=row.filename, state=AgentState.FAILED, input_type="vector",
                          error=status.errors[-1])
     if result.state == AgentState.FAILED and result.error:
-        status.errors.append(result.error)
+        status.errors.append(result.error.model_copy(update={
+            "input_id": map_id, "filename": row.filename,
+            "failsafe": ("Every feature failed geometry validation, so none were stored or fused. "
+                         if result.error.code == "GEOMETRY_INVALID" else "Nothing to analyse. ")
+                        + "The file was quarantined; spatial conclusions for affected cases are disabled."}))
         _quarantine(ctx, map_id, result.error.code)
     ctx.repo.replace_features(ctx.job.project_id, map_id, result.features)
     ctx.repo.replace_facts(ctx.job.project_id, map_id, result.facts)

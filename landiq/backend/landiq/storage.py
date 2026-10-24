@@ -278,6 +278,22 @@ class SqliteRepository:
             rows = c.execute("SELECT body FROM cases WHERE project_id=?", (project_id,)).fetchall()
         return [self._with_workflow(Case.model_validate_json(r[0])) for r in rows]
 
+    def rescore_cases(self, predict) -> int:
+        """Re-run `predict` on stored uploaded cases (e.g. after the scorer changed)."""
+        with self._conn() as c:
+            rows = c.execute("SELECT case_id, body FROM cases").fetchall()
+            updates = []
+            for case_id, body in rows:
+                case = Case.model_validate_json(body)
+                if case.is_synthetic:
+                    continue
+                prediction = predict(case)
+                if prediction.model_dump(exclude={"generated_at"}) != case.prediction.model_dump(exclude={"generated_at"}):
+                    case.prediction = prediction
+                    updates.append((case.model_dump_json(), case_id))
+            c.executemany("UPDATE cases SET body=? WHERE case_id=?", updates)
+        return len(updates)
+
     def get_case(self, case_id: str) -> Case | None:
         with self._conn() as c:
             row = c.execute("SELECT body FROM cases WHERE case_id=?", (case_id,)).fetchone()
