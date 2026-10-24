@@ -130,11 +130,11 @@ export const GisMapView: React.FC<GisMapViewProps> = ({ project, cases, features
   const quick = [...cases].filter((c) => c.polygonCoords.length).slice(0, 4);
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6 pb-12">
+      <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 flex items-center gap-1.5">
               <Layers className="h-3 w-3" />
               GIS Spatial Intelligence
             </span>
@@ -142,7 +142,7 @@ export const GisMapView: React.FC<GisMapViewProps> = ({ project, cases, features
               <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-medium">Validated uploaded layers (EPSG:4326)</span>
             )}
           </div>
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">Parcel-Level Risk Map</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-1">Parcel-Level Risk Map</h1>
           <p className="text-xs md:text-sm text-slate-500 mt-0.5">
             {parcels.length} parcel feature(s){alignments.length ? ', corridor alignment shown' : ', no alignment layer'}
             {unlinkedCount ? ` • ${unlinkedCount} parcel(s) not linked to a case` : ''}.
@@ -170,7 +170,7 @@ export const GisMapView: React.FC<GisMapViewProps> = ({ project, cases, features
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col">
+        <div className="lg:col-span-8 bg-white p-3 rounded-xl border border-slate-200/90 shadow-sm flex flex-col">
           <div className="flex items-center justify-between pb-3 px-3 border-b border-slate-100 gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-800">Layers:</span>
@@ -223,7 +223,7 @@ export const GisMapView: React.FC<GisMapViewProps> = ({ project, cases, features
         </div>
 
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-5">
+          <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Selected Parcel Inspector</span>
               <RiskBadge level={activeCase.riskCategory} size="sm" />
@@ -266,9 +266,9 @@ export const GisMapView: React.FC<GisMapViewProps> = ({ project, cases, features
                 onSelectCase(activeCase);
                 onNavigate('case-details');
               }}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all"
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl text-xs font-bold shadow-md transition-all"
             >
-              <span>VIEW CASE DETAILS & EVIDENCE</span>
+              <span>View case details & evidence</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>

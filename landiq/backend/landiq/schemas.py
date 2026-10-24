@@ -482,6 +482,32 @@ class AskIn(Model):
     question: str = Field(min_length=3, max_length=1000)
 
 
+class ChatTurn(Model):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class ChatIn(Model):
+    question: str = Field(min_length=1, max_length=1000)
+    case_id: str | None = Field(default=None, max_length=200)  # backend case_id; limits evidence to that case
+    history: list[ChatTurn] = Field(default_factory=list, max_length=8)  # recent turns; only the last 4 are used
+
+
+class ChatCitation(Model):
+    label: str  # E1, E2 … as cited in the answer
+    chunk_id: str
+    document: str
+    page: int
+    snippet: str
+
+
+class ChatOut(Model):
+    status: Literal["ANSWERED", "EVIDENCE_ONLY", "INSUFFICIENT_EVIDENCE"]
+    answer: str | None
+    citations: list[ChatCitation] = Field(default_factory=list)
+    note: str | None = None  # why there is no generated answer, when there isn't one
+
+
 class ClarifyIn(Model):
     match_id: str
     case_id: str | None  # None = "none of these"

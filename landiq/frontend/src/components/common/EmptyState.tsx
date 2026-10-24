@@ -8,7 +8,7 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ title, message, action }) => (
-  <div className="bg-white p-10 rounded-2xl border border-slate-200/90 shadow-2xs text-center space-y-3">
+  <div className="bg-white p-10 rounded-xl border border-slate-200/90 shadow-sm text-center space-y-3">
     <div className="h-12 w-12 mx-auto rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center">
       <Inbox className="h-6 w-6" />
     </div>

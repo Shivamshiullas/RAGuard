@@ -13,6 +13,7 @@ import { RecommendedActionsView } from './components/pages/RecommendedActionsVie
 import { GisMapView } from './components/pages/GisMapView';
 import { ReportsView } from './components/pages/ReportsView';
 import { IngestionView } from './components/pages/IngestionView';
+import { ChatView } from './components/pages/ChatView';
 
 const HERO_CASE_ID = '#0472';
 const CASE_PAGES: PageView[] = ['case-details', 'risk-explanation', 'recommended-actions'];
@@ -133,6 +134,7 @@ export function App() {
         />
       );
     }
+    if (currentPage === 'chat') return <ChatView key={project.id} project={project} cases={cases} onNavigate={handleNavigate} />;
     if (loading && cases.length === 0) return <EmptyState title="Loading" message="Loading cases…" />;
     if (cases.length === 0) {
       return (

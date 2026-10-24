@@ -73,16 +73,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
     : [...cases].sort((a, b) => b.recommendations.length - a.recommendations.length).slice(0, 4);
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs">
+    <div className="space-y-6 pb-12">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
               Predictive Intelligence Overview
             </span>
             {project.isDemo ? <IllustrativeBadge text="Illustrative Project Data" /> : <PredictionChip status={rated ? 'READY' : 'NOT_READY'} />}
           </div>
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">{project.name}</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-1">{project.name}</h1>
           <p className="text-xs md:text-sm text-slate-500 mt-0.5">
             {project.code} • {project.description || (project.isDemo ? 'Synthetic demo corridor' : 'Cases fused from uploaded PDFs and GIS layers')}
           </p>
@@ -98,7 +98,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
           </button>
           <button
             onClick={() => onNavigate('high-risk-cases')}
-            className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm shadow-rose-500/20 transition-all hover:scale-[1.02]"
+            className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all"
           >
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>{rated ? `View High-Risk Cases (${counts.HIGH})` : `View Case Queue (${total})`}</span>
@@ -128,7 +128,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
               variant="rose"
               trend={{ value: 'Review', isPositive: false, label: 'human review required' }}
               onClick={() => onNavigate('high-risk-cases')}
-              className="ring-2 ring-rose-500/30 ring-offset-1"
             />
           </>
         ) : (
@@ -141,11 +140,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="font-display font-bold text-base text-slate-900">{rated ? 'DELAY RISK OVERVIEW' : 'EVIDENCE QUALITY'}</h3>
+                <h3 className="font-display font-bold text-base text-slate-900">{rated ? 'Delay risk overview' : 'Evidence quality'}</h3>
                 <p className="text-xs text-slate-500">Distribution across {total} cases</p>
               </div>
               {rated ? <IllustrativeBadge text={project.isDemo ? 'Illustrative Data' : 'Rule-based scorecard'} /> : <span className="text-[10px] font-bold text-slate-500 uppercase px-2 py-0.5 rounded bg-slate-100">From fusion</span>}
@@ -166,7 +165,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="font-display text-2xl font-extrabold text-slate-900">{total}</span>
+                <span className="font-display text-2xl font-bold text-slate-900">{total}</span>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Total Cases</span>
               </div>
             </div>
@@ -179,18 +178,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
                 className={`p-2 rounded-xl border ${['bg-emerald-50/60 border-emerald-100', 'bg-amber-50/60 border-amber-100', rated ? 'bg-rose-50/60 border-rose-100' : 'bg-slate-50 border-slate-200'][i]}`}
               >
                 <span className="text-[11px] font-bold text-slate-800 block">{d.name}</span>
-                <span className="text-base font-extrabold" style={{ color: d.color }}>{pct(d.value, total)}</span>
+                <span className="text-base font-bold" style={{ color: d.color }}>{pct(d.value, total)}</span>
                 <span className="text-[10px] text-slate-500 block">{d.value} Cases</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-display font-bold text-base text-slate-900">{project.isDemo ? 'RISK TREND' : 'STATUS COVERAGE'}</h3>
+                <h3 className="font-display font-bold text-base text-slate-900">{project.isDemo ? 'Risk trend' : 'Status coverage'}</h3>
                 <TrendingUp className="h-4 w-4 text-blue-600" />
               </div>
               <p className="text-xs text-slate-500">
@@ -242,11 +241,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-display font-bold text-lg text-slate-900">{rated ? 'RECENT HIGH-RISK CASES' : 'CASES NEEDING REVIEW'}</h3>
+              <h3 className="font-display font-bold text-lg text-slate-900">{rated ? 'Recent high-risk cases' : 'Cases needing review'}</h3>
               <span className="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Attention Required</span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -254,7 +253,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
             </p>
           </div>
           <button onClick={() => onNavigate('high-risk-cases')} className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 group">
-            <span>VIEW ALL CASES</span>
+            <span>View all cases</span>
             <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
         </div>
@@ -296,7 +295,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
                           <div className="w-20 bg-slate-200 h-2 rounded-full overflow-hidden">
                             <div className="bg-rose-600 h-full rounded-full" style={{ width: `${item.delayProbability}%` }} />
                           </div>
-                          <span className="font-mono font-extrabold text-rose-700 text-sm">{item.delayProbability}%</span>
+                          <span className="font-mono font-bold text-rose-700 text-sm">{item.delayProbability}%</span>
                         </div>
                       )}
                     </td>
@@ -328,7 +327,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, cases, tr
 
         <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex items-center justify-end">
           <button onClick={() => onNavigate('high-risk-cases')} className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs">
-            <span>VIEW CASE QUEUE</span>
+            <span>View case queue</span>
             <ArrowUpRight className="h-3.5 w-3.5" />
           </button>
         </div>

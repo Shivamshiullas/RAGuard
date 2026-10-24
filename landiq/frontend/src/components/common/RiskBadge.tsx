@@ -52,9 +52,7 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
     >
       {showDot && (
         <span
-          className={`h-2 w-2 rounded-full ${config.dot} ${
-            level === 'HIGH' ? 'animate-pulse' : ''
-          }`}
+          className={`h-2 w-2 rounded-full ${config.dot} `}
         />
       )}
       <span>{config.label}</span>

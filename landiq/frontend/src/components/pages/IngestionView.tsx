@@ -35,6 +35,8 @@ const STATE_STYLE: Record<string, string> = {
   NEEDS_OCR: 'bg-amber-100 text-amber-800',
   FAILED: 'bg-rose-100 text-rose-800',
   QUARANTINED: 'bg-rose-100 text-rose-800',
+  STORED: 'bg-emerald-100 text-emerald-800',
+  DUPLICATE: 'bg-slate-100 text-slate-700',
   RETRYING: 'bg-amber-100 text-amber-800',
   RUNNING: 'bg-blue-100 text-blue-800',
   QUEUED: 'bg-slate-100 text-slate-700',
@@ -200,7 +202,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
   };
 
   const createForm = (
-    <form onSubmit={createProject} className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+    <form onSubmit={createProject} className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-3">
       <h3 className="font-display font-bold text-base text-slate-900 flex items-center gap-2"><FolderPlus className="h-4 w-4 text-blue-600" /> Create a project corridor</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name, e.g. NH-48 Package 2"
@@ -215,15 +217,15 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
   );
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs">
-        <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+    <div className="space-y-6 pb-12">
+      <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 inline-flex items-center gap-1.5">
           <UploadCloud className="h-3 w-3" /> Multimodal ingestion
         </span>
-        <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">Data & Analysis Jobs</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-1">Data & Analysis Jobs</h1>
         <p className="text-xs md:text-sm text-slate-500 mt-0.5">
-          Upload PDFs (scanned pages are read by OCR) and GIS layers. Each job runs the PDF and map agents independently, saves checkpoints, retries only
-          transient failures, fuses evidence by verified IDs and reports partial results honestly.
+          Upload case documents (text or scanned PDFs) and GIS layers, then run an analysis job. Documents and maps are processed
+          independently; inputs that fail are isolated and reported without stopping the rest of the job.
         </p>
       </div>
 
@@ -243,7 +245,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-4">
               <h3 className="font-display font-bold text-base text-slate-900">1. Upload inputs</h3>
               <label className="block p-4 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 cursor-pointer text-xs text-slate-600">
                 <span className="font-bold text-slate-800 flex items-center gap-1.5"><FileText className="h-4 w-4 text-blue-600" /> PDF documents</span>
@@ -259,7 +261,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
               <UploadResults results={uploads} />
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+            <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-display font-bold text-base text-slate-900">2. Inputs ({inputs.length})</h3>
                 <button onClick={startJob} disabled={busy === 'job' || !inputs.some((i) => i.status === 'STORED')}
@@ -277,8 +279,8 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
                       <span className="text-[10px] text-slate-400">{(i.size_bytes / 1024).toFixed(0)} KB</span>
                     </span>
                     <span className="text-right">
-                      <StateChip state={i.status === 'QUARANTINED' ? 'QUARANTINED' : 'SUCCEEDED'} />
-                      <span className="block text-[10px] text-slate-500">{i.status}{i.detail ? ` · ${i.detail}` : ''}</span>
+                      <StateChip state={i.status} />
+                      {i.detail && <span className="block text-[10px] text-slate-500">{i.detail}</span>}
                     </span>
                   </div>
                 ))}
@@ -287,7 +289,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
           </div>
 
           {job && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-5">
+            <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-5">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-900 flex items-center gap-2">
@@ -367,7 +369,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({ project, onProject
           )}
 
           {jobs.length > 1 && (
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs text-xs">
+            <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm text-xs">
               <div className="font-bold text-slate-800 mb-2">Previous jobs</div>
               <div className="flex flex-wrap gap-2">
                 {jobs.map((j) => (

@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     min_vector_similarity: float = 0.25
     retrieval_timeout_s: float = 20.0
 
+    # Chatbot (POST /projects/{id}/chat)
+    chat_top_k: int = 6
+    # Cosine distance (MiniLM): on-topic questions land ~0.5-0.74, unrelated ones ~0.8+. Farther chunks are dropped.
+    chat_max_distance: float = 0.75
+
     # LLM (used only for grounded RAG answers; never for decisions or tool selection)
     llm_chain: str = "gemini,ollama"
     llm_timeout_s: float = 25.0

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ChevronDown, Layers, HelpCircle, Database, FileStack } from 'lucide-react';
+import { Search, ChevronDown, Check, Database, FileStack } from 'lucide-react';
 import { ProjectInfo, PageView } from '../../types';
 import type { ApiHealth } from '../../api/client';
 
@@ -22,20 +22,20 @@ export const TopBar: React.FC<TopBarProps> = ({
   caseLabel,
   onSearchCase,
   searchMessage,
-  health,
 }) => {
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const pageNames: Record<PageView, string> = {
-    dashboard: 'Project Risk Overview',
-    'high-risk-cases': 'High-Risk Acquisition Cases',
-    'case-details': caseLabel ? `Case ${caseLabel} Deep Dive` : 'Case Deep Dive',
-    'risk-explanation': 'Risk Explainability',
-    'recommended-actions': 'Decision Support & Recommended Actions',
-    'gis-map': 'GIS Spatial Risk Map',
-    reports: 'Executive Decision Briefing',
-    ingestion: 'Data Ingestion & Analysis Jobs',
+    dashboard: 'Overview',
+    'high-risk-cases': 'High-Risk Cases',
+    'case-details': caseLabel ? `Case ${caseLabel}` : 'Acquisition Cases',
+    'risk-explanation': caseLabel ? `Risk Analysis · Case ${caseLabel}` : 'Risk Analysis',
+    'recommended-actions': caseLabel ? `Recommended Actions · Case ${caseLabel}` : 'Recommended Actions',
+    'gis-map': 'GIS Parcel Map',
+    reports: 'Executive Briefing',
+    chat: 'Ask the Documents',
+    ingestion: 'Data & Analysis Jobs',
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -44,69 +44,31 @@ export const TopBar: React.FC<TopBarProps> = ({
   };
 
   const isDemo = selectedProject?.isDemo ?? false;
-  const prediction = health?.prediction.status ?? 'NOT_READY';
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-2xs">
-      <div className="bg-slate-900 text-slate-300 text-[11px] font-medium px-6 py-1.5 flex items-center justify-between border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="font-bold tracking-wider text-white">LANDIQ • PROTOTYPE</span>
-          </div>
-          <span className="text-slate-500">|</span>
-          <span className="text-slate-400">Predictive Land Acquisition Delay Prevention Platform</span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {isDemo ? (
-            <div className="flex items-center gap-1.5 bg-slate-800/90 text-amber-300 px-2 py-0.5 rounded text-[10px] font-semibold border border-amber-400/20">
-              <Database className="h-3 w-3 text-amber-400" />
-              <span>Illustrative Data</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 bg-slate-800/90 text-cyan-300 px-2 py-0.5 rounded text-[10px] font-semibold border border-cyan-400/20">
-              <FileStack className="h-3 w-3 text-cyan-400" />
-              <span>Uploaded Records</span>
-            </div>
-          )}
-          <span className="text-slate-400 text-[10px] hidden sm:inline">
-            Evidence: RAG (PDF + GIS) • Prediction model: <span className="font-mono text-amber-300">{prediction}</span>
-          </span>
-        </div>
-      </div>
-
-      <div className="px-6 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 h-16 shrink-0 bg-white border-b border-slate-200">
+      <div className="h-full px-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-left transition-all group"
+              aria-haspopup="listbox"
+              aria-expanded={dropdownOpen}
+              className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left hover:bg-slate-100 transition-colors"
             >
-              <div className="h-7 w-7 rounded bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
-                <Layers className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                    {selectedProject?.name ?? 'Loading…'}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 font-mono">{selectedProject?.code}</span>
-                  <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-1 rounded">
-                    {selectedProject?.totalCases ?? 0} Total Cases
-                  </span>
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold text-slate-900 truncate max-w-56">{selectedProject?.name ?? 'Loading…'}</div>
+                <div className="text-[11px] text-slate-500">
+                  <span className="font-mono">{selectedProject?.code}</span>
+                  {selectedProject && <span> · {selectedProject.totalCases.toLocaleString()} cases</span>}
                 </div>
               </div>
+              <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
             </button>
 
             {dropdownOpen && (
-              <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                  Select Project Corridor
-                </div>
+              <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+                <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Projects</div>
                 {projects.map((proj) => (
                   <button
                     key={proj.id}
@@ -114,49 +76,57 @@ export const TopBar: React.FC<TopBarProps> = ({
                       onSelectProject(proj);
                       setDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between ${
-                      proj.id === selectedProject?.id ? 'bg-blue-50/80 text-blue-900 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                    className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between gap-2 ${
+                      proj.id === selectedProject?.id ? 'bg-slate-50' : 'hover:bg-slate-50'
                     }`}
                   >
-                    <div>
-                      <div className="font-medium">{proj.name}</div>
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        {proj.code} • {proj.isDemo ? 'synthetic demo' : 'uploaded records'}
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-900 truncate">{proj.name}</div>
+                      <div className="text-[11px] text-slate-500">
+                        <span className="font-mono">{proj.code}</span> · {proj.isDemo ? 'Synthetic demo data' : 'Uploaded records'}
                       </div>
                     </div>
-                    {proj.id === selectedProject?.id && <span className="h-2 w-2 rounded-full bg-blue-600" />}
+                    {proj.id === selectedProject?.id && <Check className="h-4 w-4 text-blue-600 shrink-0" />}
                   </button>
                 ))}
-                <div className="px-3 py-1.5 text-[10px] text-amber-600 bg-amber-50/60 border-t border-slate-100 mt-1 flex items-center gap-1">
-                  <HelpCircle className="h-3 w-3 shrink-0" />
-                  <span>The demo corridor is an illustrative synthetic dataset</span>
-                </div>
               </div>
             )}
           </div>
 
-          <div className="hidden lg:flex items-center text-xs text-slate-500 gap-1.5 pl-2 border-l border-slate-200">
-            <span>Section:</span>
-            <span className="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-[11px]">{pageNames[currentPage]}</span>
-          </div>
+          <div className="hidden md:block h-6 w-px bg-slate-200" />
+          <h1 className="hidden md:block text-[15px] font-semibold text-slate-900 truncate">{pageNames[currentPage]}</h1>
         </div>
 
-        <div className="relative">
-          <form onSubmit={handleSearch} className="relative w-60">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search Case ID (e.g. #0472)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-            />
-          </form>
-          {searchMessage && (
-            <div role="status" className="absolute right-0 top-full mt-1 w-60 text-[11px] bg-slate-900 text-white px-3 py-2 rounded-lg shadow-lg">
-              {searchMessage}
-            </div>
-          )}
+        <div className="flex items-center gap-3">
+          {selectedProject &&
+            (isDemo ? (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">
+                <Database className="h-3.5 w-3.5" /> Synthetic demo data
+              </span>
+            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 bg-slate-50 border border-slate-200 px-2 py-1 rounded-md">
+                <FileStack className="h-3.5 w-3.5" /> Uploaded records
+              </span>
+            ))}
+
+          <div className="relative">
+            <form onSubmit={handleSearch} className="relative w-64">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search case, village or survey no."
+                aria-label="Search cases"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-[13px] bg-white border border-slate-200 rounded-md text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+              />
+            </form>
+            {searchMessage && (
+              <div role="status" className="absolute right-0 top-full mt-1 w-64 text-xs bg-slate-900 text-white px-3 py-2 rounded-md shadow-lg">
+                {searchMessage}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

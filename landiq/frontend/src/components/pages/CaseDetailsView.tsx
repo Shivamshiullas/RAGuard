@@ -64,7 +64,7 @@ const TONES = {
 };
 
 const StatusCard: React.FC<StatusCardProps> = ({ icon: Icon, title, value, chip, detail, progress, tone, status, evidence }) => (
-  <div className={`bg-white p-5 rounded-xl border shadow-2xs transition-all ${TONES[tone].split(' ')[0]}`}>
+  <div className={`bg-white p-5 rounded-xl border shadow-sm transition-all ${TONES[tone].split(' ')[0]}`}>
     <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider mb-2 ${TONES[tone].split(' ')[1]}`}>
       <span className="flex items-center gap-1.5">
         <Icon className="h-4 w-4" />
@@ -132,11 +132,11 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
   const fs = caseData.fieldStatus;
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6 pb-12">
+      <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs font-extrabold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-md border border-blue-200">
+            <span className="font-mono text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-md border border-blue-200">
               CASE {caseData.id}
             </span>
             <span className="text-xs font-semibold text-slate-500">
@@ -146,7 +146,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
               <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">Data quality: {caseData.dataQuality}</span>
             )}
           </div>
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5 flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-1 flex items-center gap-3 flex-wrap">
             <span>{caseData.villageName} Parcel Cluster</span>
             {caseData.subDivision && <span className="text-sm font-normal text-slate-400 font-mono">({caseData.subDivision})</span>}
           </h1>
@@ -159,7 +159,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
         <div className="flex items-center gap-2.5 flex-wrap">
           <button onClick={() => onNavigate('risk-explanation')} className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all">
             <BrainCircuit className="h-4 w-4 text-indigo-600" />
-            <span>Risk Explainability</span>
+            <span>Risk Analysis</span>
           </button>
           <button onClick={() => onNavigate('recommended-actions')} className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all">
             <ShieldCheck className="h-4 w-4 text-amber-700" />
@@ -173,15 +173,14 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
       </div>
 
       {/* Prediction panel: illustrative figure for demo cases, readiness gate otherwise */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-rose-950 via-slate-900 to-indigo-950 text-white p-7 shadow-xl border border-rose-900/40">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 h-48 w-48 rounded-full bg-rose-500/20 blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-xl bg-slate-900 text-white p-7 shadow-sm border border-slate-800">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <div className="flex items-center gap-2 flex-wrap">
               <PredictionChip status={caseData.prediction.status} />
               {caseData.isSynthetic && <span className="text-[11px] text-amber-300 italic">Illustrative figure — not model output</span>}
             </div>
-            <h2 className="font-display text-lg font-bold tracking-tight text-slate-200 uppercase">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-100">
               {prob === null ? 'Delay prediction not available' : caseData.isSynthetic ? 'Illustrative delay probability' : rulesBased ? 'Rule-based delay risk' : 'Predicted delay probability'}
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">{caseData.prediction.reason}</p>
@@ -199,7 +198,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
             )}
           </div>
 
-          <div className="flex items-center gap-6 bg-slate-900/80 p-5 rounded-2xl border border-rose-500/30 shadow-inner">
+          <div className="flex items-center gap-6 bg-slate-900/80 p-5 rounded-xl border border-rose-500/30 shadow-inner">
             <div className="text-center">
               <div className="font-display text-6xl md:text-7xl font-black text-rose-400 tracking-tight flex items-baseline justify-center">
                 {prob === null ? <span className="text-slate-500 text-5xl">—</span> : (
@@ -245,7 +244,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
       {(caseData.conflicts.length > 0 || caseData.warnings.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {caseData.conflicts.length > 0 && (
-            <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-2xs space-y-3">
+            <div className="bg-white p-5 rounded-xl border border-rose-200 shadow-sm space-y-3">
               <h3 className="font-display font-bold text-sm text-rose-800 flex items-center gap-2">
                 <GitCompare className="h-4 w-4" /> Conflicting records (not resolved automatically)
               </h3>
@@ -264,7 +263,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
             </div>
           )}
           {caseData.warnings.length > 0 && (
-            <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-2xs space-y-2">
+            <div className="bg-white p-5 rounded-xl border border-amber-200 shadow-sm space-y-2">
               <h3 className="font-display font-bold text-sm text-amber-800 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" /> Data-quality warnings
               </h3>
@@ -277,10 +276,10 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
       )}
 
       {!caseData.isSynthetic && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+        <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <h3 className="font-display text-lg font-bold text-slate-900">EVIDENCE BEHIND THIS CASE</h3>
+              <h3 className="font-display text-lg font-bold text-slate-900">Evidence behind this case</h3>
               <p className="text-xs text-slate-500">Every value links to the document page or map feature it came from. Missing values stay UNKNOWN.</p>
             </div>
           </div>
@@ -343,7 +342,7 @@ export const CaseDetailsView: React.FC<CaseDetailsViewProps> = ({ caseData, proj
         </div>
       )}
 
-      <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
             <ShieldCheck className="h-5 w-5" />

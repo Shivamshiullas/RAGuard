@@ -250,6 +250,26 @@ export interface ApiUpload {
   detail: string | null;
 }
 
+export interface ApiChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ApiChatCitation {
+  label: string;
+  chunk_id: string;
+  document: string;
+  page: number;
+  snippet: string;
+}
+
+export interface ApiChatAnswer {
+  status: 'ANSWERED' | 'EVIDENCE_ONLY' | 'INSUFFICIENT_EVIDENCE';
+  answer: string | null;
+  citations: ApiChatCitation[];
+  note: string | null;
+}
+
 export interface ApiRagAnswer {
   question: string;
   status: 'ANSWERED' | 'INSUFFICIENT_EVIDENCE' | 'UNAVAILABLE' | 'EVIDENCE_ONLY';
@@ -317,6 +337,11 @@ export const api = {
     }),
   ask: (caseId: string, question: string) =>
     request<ApiRagAnswer>(`/cases/${encodeURIComponent(caseId)}/ask`, { method: 'POST', body: JSON.stringify({ question }) }),
+  chat: (projectId: string, question: string, options: { caseId?: string | null; history?: ApiChatTurn[] } = {}) =>
+    request<ApiChatAnswer>(`/projects/${projectId}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ question, case_id: options.caseId ?? null, history: options.history ?? [] }),
+    }),
   setWorkflow: (actionId: string, status: ApiAction['workflow_status']) =>
     request<{ note: string }>(`/actions/${actionId}/workflow`, { method: 'POST', body: JSON.stringify({ status }) }),
 };

@@ -55,7 +55,7 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
     : currentProb;
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+    <div className="space-y-6 pb-12">
       {/* Toast Notification */}
       {notificationMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
@@ -65,10 +65,10 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
       )}
 
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
               Prescriptive Decision Support
             </span>
@@ -78,7 +78,7 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
             {caseData.isSynthetic && <IllustrativeBadge />}
           </div>
 
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-1">
             Recommended Actions
           </h1>
 
@@ -99,11 +99,11 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
       </div>
 
       {/* What-If Mitigation Simulator Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl border border-indigo-800/50 shadow-lg">
+      <div className="bg-slate-900 text-white p-6 rounded-xl border border-slate-800 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-1.5 max-w-xl">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/30 text-cyan-300 px-2 py-0.5 rounded border border-cyan-400/30 flex items-center gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-white/10 text-slate-200 px-2 py-0.5 rounded border border-white/15 flex items-center gap-1">
                 <Zap className="h-3 w-3" />
                 Intervention Simulation
               </span>
@@ -156,7 +156,7 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
       {/* Prioritized Action Cards */}
       <div className="space-y-4">
         {actions.length === 0 && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 text-xs text-slate-500">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 text-xs text-slate-500">
             No action is recommended: no evidence-backed trigger (dispute, pending compensation, delayed clearance, conflict) was found for this case.
           </div>
         )}
@@ -180,7 +180,7 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
           return (
             <div
               key={act.id}
-              className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs hover:shadow-md transition-all space-y-4"
+              className="bg-white rounded-xl border border-slate-200/90 p-6 shadow-sm hover:shadow-md transition-all space-y-4"
             >
               {/* Top Row: Priority & Status */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
@@ -293,7 +293,7 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
       </div>
 
       {/* Next Flow CTA to GIS Map */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h4 className="font-display font-bold text-base text-slate-900">
             Next: Verify Spatial Risk Hotspot on GIS Map
@@ -305,7 +305,7 @@ export const RecommendedActionsView: React.FC<RecommendedActionsViewProps> = ({
 
         <button
           onClick={() => onNavigate('gis-map')}
-          className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02]"
+          className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all"
         >
           <span>Open Parcel-Level GIS Map</span>
           <ArrowRight className="h-4 w-4 text-cyan-400" />

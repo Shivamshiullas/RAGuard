@@ -124,4 +124,5 @@ export type PageView =
   | 'recommended-actions'
   | 'gis-map'
   | 'reports'
+  | 'chat'
   | 'ingestion';

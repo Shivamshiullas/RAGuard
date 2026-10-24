@@ -56,17 +56,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ project, cases, health
   };
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6 pb-12">
+      <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 flex items-center gap-1.5">
               <FileText className="h-3 w-3" />
               Executive Decision Briefing
             </span>
             {project.isDemo ? <IllustrativeBadge /> : <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">Uploaded records</span>}
           </div>
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">Executive Risk & Intelligence Dossier</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-1">Executive Risk & Intelligence Dossier</h1>
           <p className="text-xs md:text-sm text-slate-500 mt-0.5">Evidence summary and decision-support brief for {project.name}.</p>
         </div>
         <div className="flex items-center gap-3 print:hidden">
@@ -81,7 +81,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ project, cases, health
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-5">
+      <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-5">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <BrainCircuit className="h-5 w-5 text-indigo-600" />
@@ -134,7 +134,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ project, cases, health
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+        <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-4">
           <h3 className="font-display font-bold text-base text-slate-900">Corridor Summary</h3>
           <div className="space-y-3 text-xs">
             {[
@@ -153,7 +153,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ project, cases, health
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+        <div className="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm space-y-4">
           <h3 className="font-display font-bold text-base text-slate-900 flex items-center gap-2">
             <ListChecks className="h-4 w-4 text-blue-600" /> Priority Actions for Review
           </h3>
@@ -175,7 +175,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ project, cases, health
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl border border-amber-200 shadow-2xs space-y-3">
+      <div className="bg-white p-6 rounded-xl border border-amber-200 shadow-sm space-y-3">
         <h3 className="font-display font-bold text-base text-slate-900 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-600" /> Methodology & Limitations
         </h3>

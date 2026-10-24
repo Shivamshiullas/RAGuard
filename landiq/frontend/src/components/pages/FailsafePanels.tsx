@@ -43,7 +43,7 @@ const AgentFailsafeCard: React.FC<{ title: string; icon: React.ElementType; stat
         {triggered && <RecoveryBadge recovery={overallRecovery(status)} />}
       </div>
 
-      <div className={`text-sm font-extrabold flex items-center gap-1.5 ${triggered ? 'text-amber-800' : 'text-emerald-700'}`}>
+      <div className={`text-sm font-bold flex items-center gap-1.5 ${triggered ? 'text-amber-800' : 'text-emerald-700'}`}>
         {triggered ? <ShieldAlert className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
         {triggered ? `Failsafe Triggered: YES (${status.failsafes.length})` : 'Failsafe Triggered: NO.'}
       </div>
@@ -75,7 +75,7 @@ const AgentFailsafeCard: React.FC<{ title: string; icon: React.ElementType; stat
 
 export const FailsafeStatusPanel: React.FC<{ job: ApiJob }> = ({ job }) => (
   <div className="space-y-2">
-    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Failsafe status</h4>
+    <h4 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Failsafe status</h4>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <AgentFailsafeCard title="PDF Agent (PyMuPDF)" icon={FileText} status={job.pdf_agent} />
       <AgentFailsafeCard title="GIS Agent" icon={MapIcon} status={job.map_agent} />

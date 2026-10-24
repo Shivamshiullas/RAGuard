@@ -23,14 +23,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import demo, faults, orchestrator, rag
+from . import chat, demo, faults, orchestrator, rag
 from .config import LANDIQ_DIR, configure_logging, get_settings
 from .map_agent import IMAGE_EXT, PDF_EXT, SUPPORTED_EXT, VECTOR_EXT
 from .prediction import predict, readiness, risk_band
 from .retrieval import get_vectors
 from .runtime import get_repo
 from .schemas import (
-    AskIn, Case, ClarifyIn, Conflict, Fact, Job, JobIn, JobResults, JobState, Project, ProjectIn, RagAnswer, UploadOut,
+    AskIn, Case, ChatIn, ChatOut, ClarifyIn, Conflict, Fact, Job, JobIn, JobResults, JobState, Project, ProjectIn, RagAnswer, UploadOut,
 )
 
 log = logging.getLogger(__name__)
@@ -316,6 +316,19 @@ async def ask_case(case_id: str, body: AskIn) -> RagAnswer:
 async def ask_project(project_id: str, body: AskIn) -> RagAnswer:
     _project(project_id)
     return await run_in_threadpool(rag.answer, project_id, body.question, None)
+
+
+@app.post("/api/v1/projects/{project_id}/chat", response_model=ChatOut, responses=ERRORS)
+async def chat_project(project_id: str, body: ChatIn) -> ChatOut:
+    """Q&A over the project's indexed documents. LLM failures degrade to EVIDENCE_ONLY, never a 500."""
+    _project(project_id)
+    case_ref = None
+    if body.case_id:
+        case = get_repo().get_case(body.case_id)
+        if case is None or case.project_id != project_id:
+            raise HTTPException(404, "Case not found in this project.")
+        case_ref = case.case_ref
+    return await run_in_threadpool(chat.chat, project_id, body, case_ref)
 
 
 @app.get("/api/v1/projects/{project_id}/map-features", responses=ERRORS)
